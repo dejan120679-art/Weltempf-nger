@@ -167,10 +167,16 @@ window.SW_SAMPLES = {
      N.boostTame.gain.setValueAtTime(N.boostTame.gain.value,tt);
      N.boostTame.gain.linearRampToValueAtTime(-(b*4),tt+0.08);
    }
+   var bDuck=Math.max(0,(b-0.2)/0.8);bDuck=bDuck*bDuck;
    if(N.noiseDuck&&N.noiseDuck.gain){
      N.noiseDuck.gain.cancelScheduledValues(tt);
      N.noiseDuck.gain.setValueAtTime(N.noiseDuck.gain.value,tt);
-     N.noiseDuck.gain.linearRampToValueAtTime(1-(b*0.37),tt+0.08);
+     N.noiseDuck.gain.linearRampToValueAtTime(1-(bDuck*0.75),tt+0.08);
+   }
+   if(N.sampleDuck&&N.sampleDuck.gain){
+     N.sampleDuck.gain.cancelScheduledValues(tt);
+     N.sampleDuck.gain.setValueAtTime(N.sampleDuck.gain.value,tt);
+     N.sampleDuck.gain.linearRampToValueAtTime(1-(bDuck*0.65),tt+0.08);
    }
  }
  function dwUi(){
@@ -246,7 +252,9 @@ window.SW_SAMPLES = {
    N.boostLimit=ctx.createDynamicsCompressor();N.boostLimit.threshold.value=-4;N.boostLimit.knee.value=6;N.boostLimit.ratio.value=20;N.boostLimit.attack.value=0.001;N.boostLimit.release.value=0.12;
    N.master.connect(N.boostPre);N.boostPre.connect(N.boostSat);N.boostSat.connect(N.boostComp);N.boostComp.connect(N.boostMakeup);N.boostMakeup.connect(N.boostTame);N.boostTame.connect(N.boostLimit);N.boostLimit.connect(ctx.destination);
    applyBoost();
-   N.sampleBus=ctx.createGain();N.sampleBus.gain.value=1.0;N.sampleBus.connect(N.noiseBus);
+   N.sampleBus=ctx.createGain();N.sampleBus.gain.value=1.0;
+   N.sampleDuck=ctx.createGain();N.sampleDuck.gain.value=1.0;
+   N.sampleBus.connect(N.sampleDuck);N.sampleDuck.connect(N.noiseBus);
    N.sampleBP=ctx.createBiquadFilter();N.sampleBP.type="bandpass";N.sampleBP.frequency.value=1100;N.sampleBP.Q.value=2.2;
    N.sampleHP=ctx.createBiquadFilter();N.sampleHP.type="highpass";N.sampleHP.frequency.value=250;N.sampleHP.Q.value=0.7;
    N.sampleBP.connect(N.sampleHP);N.sampleHP.connect(N.sampleBus);
