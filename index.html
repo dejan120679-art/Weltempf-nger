@@ -152,7 +152,7 @@ window.SW_SAMPLES = {
  function applyBoost(){
    if(!ctx||!N||!N.boostSat)return;
    var b=state.boost||0;
-   var drive=1+b*2.2;
+   var drive=1+b*1.6;
    var nn=1024,cc=new Float32Array(nn);
    for(var i=0;i<nn;i++){var x=(i*2/nn)-1;cc[i]=Math.tanh(x*drive)/Math.tanh(drive);}
    N.boostSat.curve=cc;
@@ -162,6 +162,16 @@ window.SW_SAMPLES = {
    N.boostMakeup.gain.cancelScheduledValues(tt);
    N.boostMakeup.gain.setValueAtTime(N.boostMakeup.gain.value,tt);
    N.boostMakeup.gain.linearRampToValueAtTime(1.0+b*1.4,tt+0.05);
+   if(N.boostTame&&N.boostTame.gain){
+     N.boostTame.gain.cancelScheduledValues(tt);
+     N.boostTame.gain.setValueAtTime(N.boostTame.gain.value,tt);
+     N.boostTame.gain.linearRampToValueAtTime(-(b*4),tt+0.08);
+   }
+   if(N.noiseDuck&&N.noiseDuck.gain){
+     N.noiseDuck.gain.cancelScheduledValues(tt);
+     N.noiseDuck.gain.setValueAtTime(N.noiseDuck.gain.value,tt);
+     N.noiseDuck.gain.linearRampToValueAtTime(1-(b*0.37),tt+0.08);
+   }
  }
  function dwUi(){
    vuN.style.transform="translateX(-50%) rotate("+(-56+state.dw*114)+"deg)";
@@ -223,7 +233,8 @@ window.SW_SAMPLES = {
    N.mg.connect(N.wetBus);
    N.ng.connect(N.noiseBus);N.hg.connect(N.noiseBus);
    N.hg2.connect(N.noiseBus);N.hg3.connect(N.noiseBus);N.morg.connect(N.noiseBus);N.vog.connect(N.noiseBus);N.crg.connect(N.noiseBus);N.vog2.connect(N.noiseBus);
-   N.noiseBus.connect(N.wetBus);
+   N.noiseDuck=ctx.createGain();N.noiseDuck.gain.value=1.0;
+   N.noiseBus.connect(N.noiseDuck);N.noiseDuck.connect(N.wetBus);
    N.wetBus.connect(N.master);
    N.dryGain.connect(N.master);
    N.boostPre=ctx.createGain();N.boostPre.gain.value=1.0;
@@ -231,8 +242,9 @@ window.SW_SAMPLES = {
    (function(){var nn=1024,cc=new Float32Array(nn);for(var i=0;i<nn;i++)cc[i]=(i*2/nn)-1;N.boostSat.curve=cc;})();
    N.boostComp=ctx.createDynamicsCompressor();N.boostComp.threshold.value=0;N.boostComp.knee.value=12;N.boostComp.ratio.value=1;N.boostComp.attack.value=0.005;N.boostComp.release.value=0.18;
    N.boostMakeup=ctx.createGain();N.boostMakeup.gain.value=1.0;
-   N.boostLimit=ctx.createDynamicsCompressor();N.boostLimit.threshold.value=-3;N.boostLimit.knee.value=0;N.boostLimit.ratio.value=20;N.boostLimit.attack.value=0.001;N.boostLimit.release.value=0.05;
-   N.master.connect(N.boostPre);N.boostPre.connect(N.boostSat);N.boostSat.connect(N.boostComp);N.boostComp.connect(N.boostMakeup);N.boostMakeup.connect(N.boostLimit);N.boostLimit.connect(ctx.destination);
+   N.boostTame=ctx.createBiquadFilter();N.boostTame.type="peaking";N.boostTame.frequency.value=3200;N.boostTame.Q.value=1.0;N.boostTame.gain.value=0;
+   N.boostLimit=ctx.createDynamicsCompressor();N.boostLimit.threshold.value=-4;N.boostLimit.knee.value=6;N.boostLimit.ratio.value=20;N.boostLimit.attack.value=0.001;N.boostLimit.release.value=0.12;
+   N.master.connect(N.boostPre);N.boostPre.connect(N.boostSat);N.boostSat.connect(N.boostComp);N.boostComp.connect(N.boostMakeup);N.boostMakeup.connect(N.boostTame);N.boostTame.connect(N.boostLimit);N.boostLimit.connect(ctx.destination);
    applyBoost();
    N.sampleBus=ctx.createGain();N.sampleBus.gain.value=1.0;N.sampleBus.connect(N.noiseBus);
    N.sampleBP=ctx.createBiquadFilter();N.sampleBP.type="bandpass";N.sampleBP.frequency.value=1100;N.sampleBP.Q.value=2.2;
