@@ -233,16 +233,16 @@ window.SW_SAMPLES = {
  function genv(x,c,w){var d=(x-c)/w;return Math.exp(-d*d);}
  function genSW(){
    var prof=[
-     {hp:380,lp:2400,pkf:1200,pkg:6, peak:0.95,fd:0.25,fr:0.6},
-     {hp:600,lp:1800,pkf:900, pkg:9, peak:0.85,fd:0.45,fr:0.8},
-     {hp:250,lp:3200,pkf:1600,pkg:4, peak:0.92,fd:0.18,fr:0.4},
-     {hp:450,lp:2100,pkf:1100,pkg:7, peak:0.78,fd:0.55,fr:1.1},
-     {hp:800,lp:1600,pkf:1300,pkg:11,peak:0.88,fd:0.30,fr:0.7},
-     {hp:320,lp:2800,pkf:800, pkg:5, peak:0.90,fd:0.22,fr:0.5},
-     {hp:550,lp:1900,pkf:1450,pkg:8, peak:0.82,fd:0.65,fr:1.3},
-     {hp:400,lp:2600,pkf:1000,pkg:6, peak:0.94,fd:0.12,fr:0.35},
-     {hp:700,lp:1700,pkf:1200,pkg:10,peak:0.75,fd:0.50,fr:0.95},
-     {hp:280,lp:3000,pkf:1700,pkg:3, peak:0.96,fd:0.20,fr:0.55}
+     {hp:380,lp:2400,pkf:1200,pkg:3,  peak:0.95,fd:0.25,fr:0.6},
+     {hp:600,lp:1800,pkf:900, pkg:4.5,peak:0.85,fd:0.45,fr:0.8},
+     {hp:250,lp:3200,pkf:1600,pkg:2,  peak:0.92,fd:0.18,fr:0.4},
+     {hp:450,lp:2100,pkf:1100,pkg:3.5,peak:0.78,fd:0.55,fr:1.1},
+     {hp:800,lp:1600,pkf:1300,pkg:5.5,peak:0.88,fd:0.30,fr:0.7},
+     {hp:320,lp:2800,pkf:800, pkg:2.5,peak:0.90,fd:0.22,fr:0.5},
+     {hp:550,lp:1900,pkf:1450,pkg:4,  peak:0.82,fd:0.65,fr:1.3},
+     {hp:400,lp:2600,pkf:1000,pkg:3,  peak:0.94,fd:0.12,fr:0.35},
+     {hp:700,lp:1700,pkf:1200,pkg:5,  peak:0.75,fd:0.50,fr:0.95},
+     {hp:280,lp:3000,pkf:1700,pkg:1.5,peak:0.96,fd:0.20,fr:0.55}
    ];
    var n=5+Math.floor(Math.random()*2),cs=[],tries=0;
    while(cs.length<n&&tries<300){tries++;var cc=rndR(0.07,0.93),ok=true;for(var q=0;q<cs.length;q++){if(Math.abs(cs[q]-cc)<0.065){ok=false;break;}}if(ok)cs.push(cc);}
@@ -264,8 +264,22 @@ window.SW_SAMPLES = {
  }
  function swLock(p){if(!swLayout)genSW();var b=0;for(var i=0;i<swLayout.st.length;i++){var e=genv(p,swLayout.st[i].c,swLayout.st[i].w);if(e>b)b=e;}return b;}
  var swHistory=[],SW_HISTORY_MAX=20;
- function rollSW(){if(swLayout){swHistory.push(JSON.parse(JSON.stringify(swLayout)));if(swHistory.length>SW_HISTORY_MAX)swHistory.shift();}genSW();}
- function rollBack(){if(swHistory.length===0)return false;swLayout=swHistory.pop();return true;}
+ function rollRefresh(){
+   if(!ctx||!N||!N.het)return;
+   var nowS=performance.now()/1000;
+   N.nextVoice=nowS+0.3;N.nextHet=nowS+0.5;N.nextGhost=nowS+15;
+   [N.het,N.het2,N.het3].forEach(function(o){
+     if(!o||!o.frequency)return;
+     try{var f=o.frequency.value,t=ctx.currentTime;
+       o.frequency.cancelScheduledValues(t);
+       o.frequency.setValueAtTime(f,t);
+       o.frequency.linearRampToValueAtTime(400+Math.random()*1600,t+0.3);
+     }catch(_){}
+   });
+   if(typeof morseI!=="undefined")morseI=Math.floor(Math.random()*morseSeq.length);
+ }
+ function rollSW(){if(swLayout){swHistory.push(JSON.parse(JSON.stringify(swLayout)));if(swHistory.length>SW_HISTORY_MAX)swHistory.shift();}genSW();rollRefresh();}
+ function rollBack(){if(swHistory.length===0)return false;swLayout=swHistory.pop();rollRefresh();return true;}
  function playSample(category,gain,durLimit){
    var pool=window.SW_BUFFERS&&window.SW_BUFFERS[category];if(!pool||pool.length===0)return null;
    var ready=pool.filter(function(b){return !!b;});if(ready.length===0)return null;
@@ -325,7 +339,7 @@ window.SW_SAMPLES = {
    }else rf(N.vog.gain,0);
    var bu=near("burst");
    crackEnv*=0.78; if(now>crackNext){crackEnv=1;crackNext=now+(250+Math.random()*1550);}
-   rf(N.crg.gain, on*(bu?bu.e*bu.o.lvl:0.12)*crackEnv*0.04);
+   rf(N.crg.gain,0);
    // Fremdsender/Zahlensender (tonal), taucht unabhaengig von der Frequenz zeitweise auf
    if(now>ambT){ambOn=!ambOn;if(ambOn){var rk=Math.random();ambKind=rk<0.34?"voice":rk<0.67?"numbers":"morse";ambRate=rndR(0.9,1.7);if(ambKind==="numbers"){numSeq=[];var nL=8+Math.floor(Math.random()*7);for(var nz=0;nz<nL;nz++)numSeq.push(Math.floor(Math.random()*10));numBase=620+rndR(0,260);}else if(ambKind==="morse"){amMorseF=550+rndR(0,300);}}ambT=now+(ambOn?(1500+Math.random()*1500):(4000+Math.random()*5000));}
    ambLvl+=((ambOn?1:0)-ambLvl)*0.02;
@@ -352,16 +366,16 @@ window.SW_SAMPLES = {
    if(!N.nextVoice)N.nextVoice=t+2+Math.random()*4;
    if(!N.nextHet)N.nextHet=t+4+Math.random()*6;
    if(!N.nextGhost)N.nextGhost=t+25+Math.random()*40;
-   if(t>N.nextVoice&&N.activeSamples.length<3){
+   if(t>N.nextVoice&&N.activeSamples.length<5){
      var nearStation=L>0.4,voiceGain=nearStation?0.05:0.18;
-     if(Math.random()<(nearStation?0.3:0.7))playSample("voices",voiceGain,2.5+Math.random()*1.5);
-     N.nextVoice=t+3+Math.random()*7;
+     if(Math.random()<(nearStation?0.55:0.92))playSample("voices",voiceGain,2.5+Math.random()*1.5);
+     N.nextVoice=t+0.8+Math.random()*2.5;
    }
-   if(t>N.nextHet&&N.activeSamples.length<3){
+   if(t>N.nextHet&&N.activeSamples.length<5){
      if(L<0.5&&Math.random()<0.55)playSample("hets",0.10+Math.random()*0.08,1.0+Math.random()*1.5);
      N.nextHet=t+5+Math.random()*10;
    }
-   if(t>N.nextGhost&&N.activeSamples.length<3){
+   if(t>N.nextGhost&&N.activeSamples.length<5){
      if(Math.random()<0.4)playSample("ghosts",0.08+Math.random()*0.06,1.5+Math.random()*1.2);
      N.nextGhost=t+30+Math.random()*60;
    }
