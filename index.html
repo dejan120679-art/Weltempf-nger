@@ -143,7 +143,11 @@ window.SW_SAMPLES = {
  }
  function toneUi(){
    toneEl.style.transform="translate(-50%,-50%) rotate("+(state.tone*270)+"deg)";
-   if(ctx&&N&&N.tone)N.tone.gain.setTargetAtTime((state.tone-0.5)*24,ctx.currentTime,0.04);
+   if(ctx&&N&&N.tone)N.tone.gain.setTargetAtTime((state.tone-0.5)*36,ctx.currentTime,0.04);
+   if(ctx&&N&&N.toneLP){
+     var lpF=state.tone>=0.5?18000:18000*Math.pow(2,-(0.5-state.tone)*6);
+     N.toneLP.frequency.setTargetAtTime(lpF,ctx.currentTime,0.04);
+   }
  }
  function applyBoost(){
    if(!ctx||!N||!N.boostSat)return;
@@ -181,9 +185,10 @@ window.SW_SAMPLES = {
    N.lp=ctx.createBiquadFilter();N.lp.type="lowpass";N.lp.frequency.value=14000;
    N.pk=ctx.createBiquadFilter();N.pk.type="peaking";N.pk.frequency.value=200;N.pk.gain.value=0;
    N.si=ctx.createGain();N.sh=ctx.createWaveShaper();N.sh.curve=curve();N.so=ctx.createGain();
-   N.tone=ctx.createBiquadFilter();N.tone.type="highshelf";N.tone.frequency.value=2800;N.tone.gain.value=(state.tone-0.5)*24;
+   N.toneLP=ctx.createBiquadFilter();N.toneLP.type="lowpass";N.toneLP.frequency.value=18000;N.toneLP.Q.value=0.7;
+   N.tone=ctx.createBiquadFilter();N.tone.type="highshelf";N.tone.frequency.value=2800;N.tone.gain.value=(state.tone-0.5)*36;
    N.mg=ctx.createGain();N.mg.gain.value=0;
-   srcN.connect(N.hp);N.hp.connect(N.lp);N.lp.connect(N.pk);N.pk.connect(N.si);N.si.connect(N.sh);N.sh.connect(N.tone);N.tone.connect(N.so);N.so.connect(N.mg);
+   srcN.connect(N.hp);N.hp.connect(N.lp);N.lp.connect(N.pk);N.pk.connect(N.si);N.si.connect(N.sh);N.sh.connect(N.toneLP);N.toneLP.connect(N.tone);N.tone.connect(N.so);N.so.connect(N.mg);
    N.ns=ctx.createBufferSource();N.ns.buffer=noiseBuf();N.ns.loop=true;
    N.nbp=ctx.createBiquadFilter();N.nbp.type="bandpass";N.nbp.frequency.value=1200;N.nbp.Q.value=1.6;
    N.nlp=ctx.createBiquadFilter();N.nlp.type="lowpass";N.nlp.frequency.value=3200;N.nlp.Q.value=0.5;
