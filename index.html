@@ -164,7 +164,22 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
    N.mor=ctx.createOscillator();N.mor.type="sine";N.mor.frequency.value=620;N.morg=ctx.createGain();N.morg.gain.value=0;N.mor.connect(N.morg);
    N.von=ctx.createBufferSource();N.von.buffer=noiseBuf();N.von.loop=true;N.vobp=ctx.createBiquadFilter();N.vobp.type="bandpass";N.vobp.frequency.value=1300;N.vobp.Q.value=5;N.vog=ctx.createGain();N.vog.gain.value=0;N.von.connect(N.vobp);N.vobp.connect(N.vog);
    N.crn=ctx.createBufferSource();N.crn.buffer=noiseBuf();N.crn.loop=true;N.crhp=ctx.createBiquadFilter();N.crhp.type="highpass";N.crhp.frequency.value=2200;N.crg=ctx.createGain();N.crg.gain.value=0;N.crn.connect(N.crhp);N.crhp.connect(N.crg);
-   N.von2=ctx.createOscillator();N.von2.type="sawtooth";N.von2.frequency.value=120;N.vobp2=ctx.createBiquadFilter();N.vobp2.type="bandpass";N.vobp2.frequency.value=1100;N.vobp2.Q.value=6;N.vog2=ctx.createGain();N.vog2.gain.value=0;N.von2.connect(N.vobp2);N.vobp2.connect(N.vog2);
+   N.von2=ctx.createOscillator();N.von2.type="sawtooth";N.von2.frequency.value=120;
+   N.von2n=ctx.createBufferSource();N.von2n.buffer=noiseBuf();N.von2n.loop=true;
+   N.vG_v=ctx.createGain();N.vG_v.gain.value=0.5;
+   N.vG_u=ctx.createGain();N.vG_u.gain.value=0.5;
+   N.von2.connect(N.vG_v);N.von2n.connect(N.vG_u);
+   N.vbpA=ctx.createBiquadFilter();N.vbpA.type="bandpass";N.vbpA.frequency.value=500;N.vbpA.Q.value=8;
+   N.vbpB=ctx.createBiquadFilter();N.vbpB.type="bandpass";N.vbpB.frequency.value=1500;N.vbpB.Q.value=10;
+   N.vbpC=ctx.createBiquadFilter();N.vbpC.type="bandpass";N.vbpC.frequency.value=2700;N.vbpC.Q.value=12;
+   N.vG_v.connect(N.vbpA);N.vG_v.connect(N.vbpB);N.vG_v.connect(N.vbpC);
+   N.vG_u.connect(N.vbpA);N.vG_u.connect(N.vbpB);N.vG_u.connect(N.vbpC);
+   N.vfA=ctx.createGain();N.vfA.gain.value=1.0;
+   N.vfB=ctx.createGain();N.vfB.gain.value=0.7;
+   N.vfC=ctx.createGain();N.vfC.gain.value=0.4;
+   N.vbpA.connect(N.vfA);N.vbpB.connect(N.vfB);N.vbpC.connect(N.vfC);
+   N.vog2=ctx.createGain();N.vog2.gain.value=0;
+   N.vfA.connect(N.vog2);N.vfB.connect(N.vog2);N.vfC.connect(N.vog2);
    N.master=ctx.createGain();N.master.gain.value=state.power?state.vol:0;
    N.wetBus=ctx.createGain();N.wetBus.gain.value=state.dw;
    N.noiseBus=ctx.createGain();N.noiseBus.gain.value=1;
@@ -177,7 +192,7 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
    N.wetBus.connect(N.master);
    N.dryGain.connect(N.master);
    N.master.connect(ctx.destination);
-   N.ns.start();N.het.start();N.het2.start();N.het3.start();N.mor.start();N.von.start();N.crn.start();N.von2.start();started=true;loop();
+   N.ns.start();N.het.start();N.het2.start();N.het3.start();N.mor.start();N.von.start();N.crn.start();N.von2.start();N.von2n.start();started=true;loop();
  }
  function r(p,v){if(p)p.setTargetAtTime(v,ctx.currentTime,0.06);}
  function rf(pp,v){pp.setTargetAtTime(v,ctx.currentTime,0.008);}
@@ -189,10 +204,16 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
  function genv(x,c,w){var d=(x-c)/w;return Math.exp(-d*d);}
  function genSW(){
    var prof=[
-     {hp:360,lp:1500,pkf:1100,pkg:5,peak:1.0,fd:0.55,fr:0.12},
-     {hp:620,lp:2600,pkf:2000,pkg:3,peak:0.85,fd:0.62,fr:0.26},
-     {hp:240,lp:3400,pkf:3000,pkg:4,peak:0.95,fd:0.30,fr:0.09},
-     {hp:200,lp:2100,pkf:700, pkg:4,peak:1.0,fd:0.42,fr:0.17}
+     {hp:380,lp:2400,pkf:1200,pkg:6, peak:0.95,fd:0.25,fr:0.6},
+     {hp:600,lp:1800,pkf:900, pkg:9, peak:0.85,fd:0.45,fr:0.8},
+     {hp:250,lp:3200,pkf:1600,pkg:4, peak:0.92,fd:0.18,fr:0.4},
+     {hp:450,lp:2100,pkf:1100,pkg:7, peak:0.78,fd:0.55,fr:1.1},
+     {hp:800,lp:1600,pkf:1300,pkg:11,peak:0.88,fd:0.30,fr:0.7},
+     {hp:320,lp:2800,pkf:800, pkg:5, peak:0.90,fd:0.22,fr:0.5},
+     {hp:550,lp:1900,pkf:1450,pkg:8, peak:0.82,fd:0.65,fr:1.3},
+     {hp:400,lp:2600,pkf:1000,pkg:6, peak:0.94,fd:0.12,fr:0.35},
+     {hp:700,lp:1700,pkf:1200,pkg:10,peak:0.75,fd:0.50,fr:0.95},
+     {hp:280,lp:3000,pkf:1700,pkg:3, peak:0.96,fd:0.20,fr:0.55}
    ];
    var n=5+Math.floor(Math.random()*2),cs=[],tries=0;
    while(cs.length<n&&tries<300){tries++;var cc=rndR(0.07,0.93),ok=true;for(var q=0;q<cs.length;q++){if(Math.abs(cs[q]-cc)<0.065){ok=false;break;}}if(ok)cs.push(cc);}
@@ -210,7 +231,7 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
      inf.push({k:kk,c:rndR(0.05,0.95),w:(kk==="voice"||kk==="numbers")?rndR(0.020,0.038):rndR(0.012,0.028),
        f:rndR(450,1900),rate:rndR(0.6,1.8),lvl:rndR(0.6,1),ph:rndR(0,6.28),dr:rndR(0.03,0.12)});
    }
-   swLayout={st:st,inf:inf};
+   swLayout={st:st,inf:inf,ambient:{baseFreq:rndR(95,145),bp1Center:rndR(400,700),bp2Center:rndR(1200,1800),bp3Center:rndR(2400,3000),syllRate:rndR(3.2,5.5),phraseRate:rndR(0.6,1.2),voicingRate:rndR(1.2,2.4)}};
  }
  function swLock(p){if(!swLayout)genSW();var b=0;for(var i=0;i<swLayout.st.length;i++){var e=genv(p,swLayout.st[i].c,swLayout.st[i].w);if(e>b)b=e;}return b;}
  var swHistory=[],SW_HISTORY_MAX=20;
@@ -262,17 +283,23 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
    // Fremdsender/Zahlensender (tonal), taucht unabhaengig von der Frequenz zeitweise auf
    if(now>ambT){ambOn=!ambOn;if(ambOn){var rk=Math.random();ambKind=rk<0.34?"voice":rk<0.67?"numbers":"morse";ambRate=rndR(0.9,1.7);if(ambKind==="numbers"){numSeq=[];var nL=8+Math.floor(Math.random()*7);for(var nz=0;nz<nL;nz++)numSeq.push(Math.floor(Math.random()*10));numBase=620+rndR(0,260);}else if(ambKind==="morse"){amMorseF=550+rndR(0,300);}}ambT=now+(ambOn?(1500+Math.random()*1500):(4000+Math.random()*5000));}
    ambLvl+=((ambOn?1:0)-ambLvl)*0.02;
-   var ambEnv=0,af=118,bf=1100;
+   var A=swLayout.ambient,baseF=A.baseFreq+5*Math.sin(t*0.3),ambEnv=0;
    if(ambKind==="numbers"){
      var beat=t*ambRate,idx=Math.floor(beat),digit=numSeq.length?numSeq[((idx%numSeq.length)+numSeq.length)%numSeq.length]:0,ph=beat-idx;
-     af=numBase+digit*42;bf=af;
+     baseF=numBase+digit*42;
      ambEnv=(ph<0.55&&(idx%6)!==0)?1:0;
    }else if(ambKind==="voice"){
-     af=118+9*Math.sin(t*5.3);bf=1050+320*Math.sin(t*0.6);
-     ambEnv=(0.3+0.7*Math.max(0,Math.sin(t*3.2)))*(0.45+0.55*Math.sin(t*0.85+1));
+     var syll=Math.pow(Math.max(0,Math.sin(t*A.syllRate+1)),4);
+     var phrase=0.5+0.5*Math.sin(t*A.phraseRate+2);
+     ambEnv=syll*phrase;
    }
-   N.von2.frequency.setTargetAtTime(af,ctx.currentTime,ambKind==="numbers"?0.015:0.06);
-   N.vobp2.frequency.setTargetAtTime(bf,ctx.currentTime,0.1);
+   N.von2.frequency.setTargetAtTime(baseF,ctx.currentTime,ambKind==="numbers"?0.015:0.06);
+   N.vbpA.frequency.setTargetAtTime(A.bp1Center+200*Math.sin(t*0.8),ctx.currentTime,0.1);
+   N.vbpB.frequency.setTargetAtTime(A.bp2Center+400*Math.sin(t*0.6+1),ctx.currentTime,0.1);
+   N.vbpC.frequency.setTargetAtTime(A.bp3Center+300*Math.sin(t*0.5+2),ctx.currentTime,0.1);
+   var voicing=0.5+0.5*Math.sin(t*A.voicingRate);
+   N.vG_v.gain.setTargetAtTime(voicing,ctx.currentTime,0.05);
+   N.vG_u.gain.setTargetAtTime(1-voicing,ctx.currentTime,0.05);
    rf(N.vog2.gain,on*ambLvl*ambEnv*0.20);
    if(ambKind==="morse"&&ambOn){N.mor.frequency.setTargetAtTime(amMorseF,ctx.currentTime,0.1);rf(N.morg.gain,on*ambLvl*(morseOn?1:0)*0.16);}
  }
