@@ -137,15 +137,16 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
    N.mor=ctx.createOscillator();N.mor.type="sine";N.mor.frequency.value=620;N.morg=ctx.createGain();N.morg.gain.value=0;N.mor.connect(N.morg);
    N.von=ctx.createBufferSource();N.von.buffer=noiseBuf();N.von.loop=true;N.vobp=ctx.createBiquadFilter();N.vobp.type="bandpass";N.vobp.frequency.value=1300;N.vobp.Q.value=5;N.vog=ctx.createGain();N.vog.gain.value=0;N.von.connect(N.vobp);N.vobp.connect(N.vog);
    N.crn=ctx.createBufferSource();N.crn.buffer=noiseBuf();N.crn.loop=true;N.crhp=ctx.createBiquadFilter();N.crhp.type="highpass";N.crhp.frequency.value=2200;N.crg=ctx.createGain();N.crg.gain.value=0;N.crn.connect(N.crhp);N.crhp.connect(N.crg);
+   N.von2=ctx.createBufferSource();N.von2.buffer=noiseBuf();N.von2.loop=true;N.vobp2=ctx.createBiquadFilter();N.vobp2.type="bandpass";N.vobp2.frequency.value=1200;N.vobp2.Q.value=4;N.vog2=ctx.createGain();N.vog2.gain.value=0;N.von2.connect(N.vobp2);N.vobp2.connect(N.vog2);
    N.master=ctx.createGain();N.master.gain.value=state.power?state.vol:0;
    N.mg.connect(N.master);N.ng.connect(N.master);N.hg.connect(N.master);
-   N.hg2.connect(N.master);N.hg3.connect(N.master);N.morg.connect(N.master);N.vog.connect(N.master);N.crg.connect(N.master);
+   N.hg2.connect(N.master);N.hg3.connect(N.master);N.morg.connect(N.master);N.vog.connect(N.master);N.crg.connect(N.master);N.vog2.connect(N.master);
    N.master.connect(ctx.destination);
-   N.ns.start();N.het.start();N.het2.start();N.het3.start();N.mor.start();N.von.start();N.crn.start();started=true;loop();
+   N.ns.start();N.het.start();N.het2.start();N.het3.start();N.mor.start();N.von.start();N.crn.start();N.von2.start();started=true;loop();
  }
  function r(p,v){if(p)p.setTargetAtTime(v,ctx.currentTime,0.06);}
  function rf(pp,v){pp.setTargetAtTime(v,ctx.currentTime,0.008);}
- var morseSeq=[120,120,360,120,360,360,120,720,120,120,480],morseI=0,morseT=0,morseOn=false,crackEnv=0,crackNext=0,vuVal=0;
+ var morseSeq=[120,120,360,120,360,360,120,720,120,120,480],morseI=0,morseT=0,morseOn=false,crackEnv=0,crackNext=0,vuVal=0,ambT=0,ambOn=false,ambKind="voice",ambRate=1.2,ambLvl=0;
 
  // ===== KW-Landschaft (Idee 3) =====
  var swLayout=null;
@@ -218,6 +219,11 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
    var bu=near("burst");
    crackEnv*=0.78; if(now>crackNext){crackEnv=1;crackNext=now+(80+Math.random()*700);}
    rf(N.crg.gain, on*(bu?bu.e*bu.o.lvl:0.12)*crackEnv*0.10);
+   // Fremdsender/Zahlensender, taucht unabhaengig von der Frequenz zeitweise auf
+   if(now>ambT){ambOn=!ambOn;if(ambOn){ambKind=Math.random()<0.5?"numbers":"voice";ambRate=rndR(0.8,1.6);N.vobp2.frequency.setTargetAtTime(rndR(900,1500),ctx.currentTime,0.3);}ambT=now+(ambOn?(3000+Math.random()*4000):(4000+Math.random()*7000));}
+   ambLvl+=((ambOn?1:0)-ambLvl)*0.02;
+   var ambEnv=(ambKind==="numbers")?((Math.sin(t*Math.PI*ambRate)>0)?1:0):((0.4+0.6*Math.max(0,Math.sin(t*3.1)))*(0.5+0.5*Math.sin(t*0.9+1)));
+   rf(N.vog2.gain,on*ambLvl*ambEnv*0.13);
  }
  function loop(){
    requestAnimationFrame(loop);if(!started)return;
@@ -231,6 +237,7 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
      vsig=(0.07+0.93*vss)*(b==="mw"?(0.9+0.1*Math.sin(vt*1.1)):1);}
    vuVal+=(vsig-vuVal)*0.09;
    vuN.style.transform="translateX(-50%) rotate("+(-56+vuVal*114)+"deg)";
+   if(b!=="sw"&&N.vog2)rf(N.vog2.gain,0);
    if(!b){ // CLEAN: Track ganz normal, kein Empfaenger-Effekt
      r(N.hp.frequency,20);r(N.lp.frequency,18000);r(N.pk.gain,0);
      r(N.si.gain,0.9);r(N.so.gain,1.05);
