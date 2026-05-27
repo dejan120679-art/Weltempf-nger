@@ -164,7 +164,7 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
    N.het3=ctx.createOscillator();N.het3.type="sine";N.het3.frequency.value=720;N.hg3=ctx.createGain();N.hg3.gain.value=0;N.het3.connect(N.hg3);
    N.mor=ctx.createOscillator();N.mor.type="sine";N.mor.frequency.value=620;N.morg=ctx.createGain();N.morg.gain.value=0;N.mor.connect(N.morg);
    N.von=ctx.createBufferSource();N.von.buffer=noiseBuf();N.von.loop=true;N.vobp=ctx.createBiquadFilter();N.vobp.type="bandpass";N.vobp.frequency.value=1300;N.vobp.Q.value=5;N.vog=ctx.createGain();N.vog.gain.value=0;N.von.connect(N.vobp);N.vobp.connect(N.vog);
-   N.crn=ctx.createBufferSource();N.crn.buffer=noiseBuf();N.crn.loop=true;N.crhp=ctx.createBiquadFilter();N.crhp.type="highpass";N.crhp.frequency.value=2200;N.crg=ctx.createGain();N.crg.gain.value=0;N.crn.connect(N.crhp);N.crhp.connect(N.crg);
+   N.crn=ctx.createBufferSource();N.crn.buffer=noiseBuf();N.crn.loop=true;N.crhp=ctx.createBiquadFilter();N.crhp.type="highpass";N.crhp.frequency.value=1200;N.crg=ctx.createGain();N.crg.gain.value=0;N.crn.connect(N.crhp);N.crhp.connect(N.crg);
    N.von2=ctx.createOscillator();N.von2.type="sawtooth";N.von2.frequency.value=120;
    N.von2n=ctx.createBufferSource();N.von2n.buffer=noiseBuf();N.von2n.loop=true;
    N.vG_v=ctx.createGain();N.vG_v.gain.value=0.5;
@@ -279,8 +279,8 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
      rf(N.vog.gain,on*nu.e*gate*nu.o.lvl*drift(nu.o)*0.13);
    }else rf(N.vog.gain,0);
    var bu=near("burst");
-   crackEnv*=0.78; if(now>crackNext){crackEnv=1;crackNext=now+(80+Math.random()*700);}
-   rf(N.crg.gain, on*(bu?bu.e*bu.o.lvl:0.12)*crackEnv*0.10);
+   crackEnv*=0.78; if(now>crackNext){crackEnv=1;crackNext=now+(250+Math.random()*1550);}
+   rf(N.crg.gain, on*(bu?bu.e*bu.o.lvl:0.12)*crackEnv*0.04);
    // Fremdsender/Zahlensender (tonal), taucht unabhaengig von der Frequenz zeitweise auf
    if(now>ambT){ambOn=!ambOn;if(ambOn){var rk=Math.random();ambKind=rk<0.34?"voice":rk<0.67?"numbers":"morse";ambRate=rndR(0.9,1.7);if(ambKind==="numbers"){numSeq=[];var nL=8+Math.floor(Math.random()*7);for(var nz=0;nz<nL;nz++)numSeq.push(Math.floor(Math.random()*10));numBase=620+rndR(0,260);}else if(ambKind==="morse"){amMorseF=550+rndR(0,300);}}ambT=now+(ambOn?(1500+Math.random()*1500):(4000+Math.random()*5000));}
    ambLvl+=((ambOn?1:0)-ambLvl)*0.02;
