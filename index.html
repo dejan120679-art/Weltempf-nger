@@ -159,11 +159,12 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
      {hp:240,lp:3400,pkf:3000,pkg:4,peak:0.95,fd:0.30,fr:0.09},
      {hp:200,lp:2100,pkf:700, pkg:4,peak:1.0,fd:0.42,fr:0.17}
    ];
-   var n=3+Math.floor(Math.random()*3),st=[],used=-1;
-   for(var i=0;i<n;i++){
-     var pi;do{pi=Math.floor(Math.random()*prof.length);}while(pi===used);used=pi;
-     var lo=0.07+i*(0.86/n);
-     st.push({c:rndR(lo+0.02,lo+0.86/n-0.02),w:rndR(0.016,0.030),p:prof[pi]});
+   var n=5+Math.floor(Math.random()*2),cs=[],tries=0;
+   while(cs.length<n&&tries<300){tries++;var cc=rndR(0.07,0.93),ok=true;for(var q=0;q<cs.length;q++){if(Math.abs(cs[q]-cc)<0.065){ok=false;break;}}if(ok)cs.push(cc);}
+   cs.sort(function(a,b){return a-b;});
+   var st=[],used=-1;
+   for(var i=0;i<cs.length;i++){var pi;do{pi=Math.floor(Math.random()*prof.length);}while(pi===used);used=pi;
+     st.push({c:cs[i],w:rndR(0.022,0.038),p:prof[pi]});
    }
    var base=["carrier","carrier","voice","voice","numbers","morse","burst","burst"];
    var extra=["carrier","voice","numbers","morse","burst"];
