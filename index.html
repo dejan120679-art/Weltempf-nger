@@ -68,6 +68,15 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
  text-transform:uppercase;opacity:.85;text-shadow:0 1px 2px rgba(0,0,0,.6);}
 #hint{position:fixed;bottom:8px;left:0;right:0;text-align:center;font-size:11px;
  color:#7a6438;letter-spacing:.08em;}
+#presetPrev,#presetNext{position:absolute;transform:translate(-50%,-50%);cursor:pointer;
+ border-radius:8px;display:flex;align-items:center;justify-content:center;
+ font-family:'Cinzel',serif;font-size:18px;color:#ffcc7a;letter-spacing:.05em;
+ outline:2px dashed rgba(255,170,70,.9);background:rgba(255,170,70,.10);
+ user-select:none;z-index:7;transition:background .15s,box-shadow .15s;}
+#presetPrev:hover,#presetNext:hover{background:rgba(255,200,110,.20);}
+#presetPrev.flash,#presetNext.flash{box-shadow:0 0 22px 6px rgba(255,180,80,.75);background:rgba(255,200,110,.35);}
+#presetPrev{left:34%;top:81.5%;width:4.5%;height:5.5%;}
+#presetNext{left:40%;top:81.5%;width:4.5%;height:5.5%;}
 </style></head>
 <body>
 <div id="wrap">
@@ -85,6 +94,8 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
   <div class="zone band" id="sw"></div>
   <div class="zone" id="scan"></div>
   <div class="zone" id="play"></div>
+  <div id="presetPrev">◄</div>
+  <div id="presetNext">►</div>
   <div id="load">⏏ Track laden</div>
   <div id="title">— kein Track —</div>
   <input type="file" id="file" accept="audio/*" style="display:none">
@@ -206,6 +217,20 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
    swLayout={st:st,inf:inf};
  }
  function swLock(p){if(!swLayout)genSW();var b=0;for(var i=0;i<swLayout.st.length;i++){var e=genv(p,swLayout.st[i].c,swLayout.st[i].w);if(e>b)b=e;}return b;}
+ // ---- Preset Re-Roll (KW-Landschaft) ----
+ var swHistory=[], SW_HISTORY_MAX=20;
+ function rollSW(){
+   if(swLayout){
+     swHistory.push(JSON.parse(JSON.stringify(swLayout)));
+     if(swHistory.length>SW_HISTORY_MAX)swHistory.shift();
+   }
+   genSW();
+ }
+ function rollBack(){
+   if(swHistory.length===0)return false;
+   swLayout=swHistory.pop();
+   return true;
+ }
  function swLoop(now,on){
    if(!swLayout)genSW();
    var t=now/1000,best=0,bi=0;
@@ -363,6 +388,13 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
    tg=Math.max(0,Math.min(1,tg));var f=state.pos,i=0;
    var iv=setInterval(function(){i++;state.pos=f+(tg-f)*(i/22);ui();if(i>=22)clearInterval(iv);},18);
  });
+ // ---- preset re-roll (KW-Landschaft) ----
+ (function(){
+   var pp=document.getElementById("presetPrev"),pn=document.getElementById("presetNext");
+   function flash(el){el.classList.add("flash");setTimeout(function(){el.classList.remove("flash");},220);}
+   pn.addEventListener("click",function(){rollSW();flash(pn);});
+   pp.addEventListener("click",function(){if(rollBack())flash(pp);});
+ })();
  // ---- load + play ----
  document.getElementById("load").addEventListener("click",function(){fileIn.click();});
  function loadFile(f){if(!f)return;if(f.type&&f.type.indexOf("audio")!==0){title.textContent="\u26A0 keine Audiodatei";return;}pending=URL.createObjectURL(f);title.textContent=f.name.replace(/\.[^.]+$/,"");state.band=null;genSW();["fm","mw","sw"].forEach(function(x){document.getElementById(x).classList.remove("active");});if(audioEl){audioEl.src=pending;audioEl.currentTime=0;}ui();}
