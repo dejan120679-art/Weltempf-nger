@@ -194,11 +194,11 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
  // ---- knob drag ----
  var drag=false,ly=0;
  function dn(e){drag=true;ly=e.touches?e.touches[0].clientY:e.clientY;e.preventDefault();}
- function mv(e){if(!drag)return;var y=e.touches?e.touches[0].clientY:e.clientY;state.pos=Math.max(0,Math.min(1,state.pos+(ly-y)*0.005));ly=y;ui();}
+ function mv(e){if(!drag)return;var y=e.touches?e.touches[0].clientY:e.clientY;state.pos=Math.max(0,Math.min(1,state.pos+(ly-y)*0.0015));ly=y;ui();}
  function up(){drag=false;}
  knob.addEventListener("mousedown",dn);window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);
  knob.addEventListener("touchstart",dn,{passive:false});window.addEventListener("touchmove",mv,{passive:false});window.addEventListener("touchend",up);
- knob.addEventListener("wheel",function(e){e.preventDefault();state.pos=Math.max(0,Math.min(1,state.pos-Math.sign(e.deltaY)*0.02));ui();},{passive:false});
+ knob.addEventListener("wheel",function(e){e.preventDefault();state.pos=Math.max(0,Math.min(1,state.pos-Math.sign(e.deltaY)*0.006));ui();},{passive:false});
  // ---- volume drag ----
  var vdrag=false,vly=0;
  function vdn(e){vdrag=true;vly=e.touches?e.touches[0].clientY:e.clientY;e.preventDefault();}
