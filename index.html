@@ -100,7 +100,7 @@ body{background:radial-gradient(ellipse at 50% 35%,#2a2018,#0c0906 70%);
  function ui(){
    var lp=POSMIN+(POSMAX-POSMIN)*state.pos;
    needle.style.left=(lp*100)+"%";
-   knob.style.transform="translate(-50%,-50%) rotate("+(-150+state.pos*300)+"deg)";
+   knob.style.transform="translate(-50%,-50%) rotate("+(state.pos*1440)+"deg)";
    volUi();toneUi();
  }
  function volUi(){
