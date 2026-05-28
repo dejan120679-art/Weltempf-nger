@@ -1,0 +1,64 @@
+WELTEMPFAENGER - KW-Snippet-Bibliothek - Quellen & Lizenzen
+============================================================
+
+Alle Snippets sind Ausschnitte aus den unten gelisteten Quellen.
+Verarbeitung: Mono, 22 kHz, Pegel normalisiert (loudnorm), Fades, 64 kbit MP3.
+
+FREESOUND.ORG (CC) - ID / Autor / URL:
+------------------------------------------------------------
+  #131535    alienxxx               https://freesound.org/s/131535/
+  #217752    erh                    https://freesound.org/s/217752/
+  #24005     danielc0307            https://freesound.org/s/24005/
+  #241759    trebblofang            https://freesound.org/s/241759/
+  #242704    kb7clx                 https://freesound.org/s/242704/
+  #260163    alienxxx               https://freesound.org/s/260163/
+  #347804    vyzel                  https://freesound.org/s/347804/
+  #397393    kb7clx                 https://freesound.org/s/397393/
+  #413704    cydon                  https://freesound.org/s/413704/
+  #431361    alienxxx               https://freesound.org/s/431361/
+  #454742    cydon                  https://freesound.org/s/454742/
+  #455408    w1zy                   https://freesound.org/s/455408/
+  #488682    inchadney              https://freesound.org/s/488682/
+  #502532    discordantscraps       https://freesound.org/s/502532/
+  #54971     erh                    https://freesound.org/s/54971/
+  #583363    nakkivene66            https://freesound.org/s/583363/
+  #583364    nakkivene66            https://freesound.org/s/583364/
+  #645801    cask                   https://freesound.org/s/645801/
+  #654197    randomrecord19         https://freesound.org/s/654197/
+  #70143     schulle4u              https://freesound.org/s/70143/
+  #730109    cask                   https://freesound.org/s/730109/
+  #8319      833-45                 https://freesound.org/s/8319/
+  #836427    eelsake                https://freesound.org/s/836427/
+  #836439    eelsake                https://freesound.org/s/836439/
+  #844743    kb7clx                 https://freesound.org/s/844743/
+  #845140    funkelfang             https://freesound.org/s/845140/
+  #9375      833-45                 https://freesound.org/s/9375/
+
+WEBSDR-AUFNAHMEN (User, 2020-2021, versch. Baender):
+------------------------------------------------------------
+  websdr_recording_start_2020-02-14T12_32_31Z_13412_3kHz.wav
+  websdr_recording_start_2020-03-05T11_04_10Z_229_3kHz.wav
+  websdr_recording_start_2020-03-10T20_58_34Z_2733_7kHz.wav
+  websdr_recording_start_2020-06-22T23_24_07Z_569_5kHz.wav
+  websdr_recording_start_2021-01-02T19_54_49Z_746_6kHz.wav
+  websdr_recording_start_2021-01-02T19_57_50Z_12072_8kHz.wav
+  websdr_recording_start_2021-01-29T18_44_11Z_683_4kHz.wav
+
+FX / SONSTIGE (User-Bibliothek):
+------------------------------------------------------------
+  1_Shortwave_Radio_99_BPM_A__minor.wav
+  250153__kwahmah_02__zappy-rhythm.wav
+  250158__kwahmah_02__another-creepy-melody.wav
+  256916__kwahmah_02__xpa2.wav
+  261571__kwahmah_02__double-melodies.wav
+  288887__kwahmah_02__day-7-7th-july-jobro-searching-for-a-beat.flac
+  415294__shortwave_ghosts__mumbled-voices.wav
+  Howling_Riser_Falling_Moans_01_76_BPM_NA.wav
+  Metamorph_FX_Ear_Candy_01_76_BPM_NA.wav
+  freesound_community-echoed-phonetic-alphabet-54825.mp3
+  kw_station_china9640_02.mp3
+  kw_voice_foreign_01.mp3
+  kw_voice_garble_01.mp3
+  kw_voice_ham_01.mp3
+  kw_voice_mumbled_01.mp3
+  kw_voice_phonetic_01.mp3
