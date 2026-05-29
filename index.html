@@ -39,6 +39,10 @@
   .bandsel div.act{color:var(--green);border-color:var(--green-deep);background:rgba(70,224,125,.12);
     box-shadow:inset 0 0 10px rgba(70,224,125,.15);text-shadow:0 0 8px rgba(70,224,125,.5)}
   .falls{position:relative;height:330px;background:#020912;border-bottom:1px solid var(--line)}
+  .falls.collapsed{display:none}
+  .fallstoggle{padding:6px 16px;font-size:10px;letter-spacing:.18em;color:var(--text-dim);cursor:pointer;
+    border-bottom:1px solid var(--line);user-select:none}
+  .fallstoggle:hover{color:var(--green-dim)}
   #waterfall{display:block;width:100%;height:100%}
   .yaxis{position:absolute;top:0;left:0;height:100%;width:54px;display:flex;flex-direction:column;
     justify-content:space-between;padding:10px 6px 26px 8px;font-size:10px;color:#5fd39a;opacity:.6;
@@ -159,7 +163,8 @@
     </div>
   </div>
 
-  <div class="falls">
+  <div class="fallstoggle" id="fallsToggle">▸ SPEKTRUM</div>
+  <div class="falls collapsed">
     <canvas id="waterfall"></canvas>
     <div class="yaxis"><div class="unit">s</div><div>-2</div><div>-4</div><div>-6</div><div>-8</div></div>
     <div class="cursor"><div class="tri"></div><div class="vline"></div><div class="cross"></div></div>
@@ -204,7 +209,7 @@
 
     <div class="cell">
       <div class="triple">
-        <div><div class="ttl">VOLUME</div><div class="knob-wrap"><div class="knob"><i style="transform:translateX(-50%) rotate(-40deg)"></i></div><div class="knob-row"><span>MIN</span><span>MAX</span></div></div></div>
+        <div><div class="ttl">VOLUME</div><div class="knob-wrap"><div class="knob" id="volKnob" style="cursor:ns-resize;touch-action:none"><i id="volInd" style="transform:translateX(-50%) rotate(81deg)"></i></div><div class="knob-row"><span>MIN</span><span>MAX</span></div></div></div>
         <div><div class="ttl">TONE</div><div class="knob-wrap"><div class="knob"><i style="transform:translateX(-50%) rotate(0deg)"></i></div><div class="knob-row"><span>LOW</span><span>HIGH</span></div></div></div>
         <div><div class="ttl">BOOST</div><div class="knob-wrap"><div class="knob"><i style="transform:translateX(-50%) rotate(35deg)"></i></div><div class="knob-row"><span>MIN</span><span>MAX</span></div></div></div>
       </div>
@@ -240,7 +245,7 @@
   </div>
 
   <div class="footer">
-    <div>RX MODE: <span class="v">USB</span> &nbsp;|&nbsp; IF SHIFT: <span class="v">0 Hz</span> &nbsp;|&nbsp; AUDIO: <span class="v">22 kHz</span> &nbsp;|&nbsp; <span class="v">v41-test2</span></div>
+    <div>RX MODE: <span class="v">USB</span> &nbsp;|&nbsp; IF SHIFT: <span class="v">0 Hz</span> &nbsp;|&nbsp; AUDIO: <span class="v">22 kHz</span> &nbsp;|&nbsp; <span class="v">v42-test</span></div>
     <div class="tag">THE NOISE IS THE CONTENT.</div>
   </div>
 </div>
@@ -256,9 +261,9 @@ const LIVELY=new Set(["loop","numbers","station","voice","voicep"]);
 const BAND_OF={station:"FM",tones:"FM",fx:"FM",voice:"MW",numbers:"MW",loop:"SW",static:"SW",websdr:"SW",voicep:"SW"};
 // Empfänger-Charakter pro Band: noise=Grundrauschen, lpMax=Klarheit am Sweet-Spot
 const BANDS={
-  FM:{noise:0.018, lpMax:6500, hetLvl:0.04},
-  MW:{noise:0.055, lpMax:4200, hetLvl:0.10},
-  SW:{noise:0.110, lpMax:3200, hetLvl:0.18}
+  FM:{noise:0.018, lpMax:6500, hetLvl:0.04, nType:"lowpass",  nFreq:3500, nQ:0.5},
+  MW:{noise:0.050, lpMax:4200, hetLvl:0.10, nType:"bandpass", nFreq:1400, nQ:1.0},
+  SW:{noise:0.100, lpMax:3200, hetLvl:0.18, nType:"bandpass", nFreq:2200, nQ:1.4}
 };
 let band="SW";
 
@@ -295,17 +300,18 @@ for(const b in BANDS) BANDS[b].presets=buildBandPresets(b);
 // --- TEST-MODUS: nur EIN Preset (Static) auf 9640 kHz, alles andere aus ---
 const TEST_ONE=true;
 if(TEST_ONE){
-  const s={snip:"kw_static_freqnoise_01.mp3",freq:9640,type:"static",win:30,po:0,peak:0.7};
-  const v={snip:"kw_station_china9640_01.mp3",freq:9700,type:"station",win:22,po:0,peak:0.8};
+  const s={snip:"kw_static_freqnoise_01.mp3",freq:9640,type:"static",win:55,po:0,peak:0.7};
+  const v={snip:"kw_station_china9640_01.mp3",freq:9760,type:"station",win:50,po:0,peak:0.8};
   BANDS.FM.presets=[]; BANDS.MW.presets=[]; BANDS.SW.presets=[s,v];
 }
 function curPresets(){ return BANDS[band].presets; }
 
 /* ---------- audio graph: gemeinsame Empfänger-Kette ---------- */
-let ctx=null, bus=null, lp=null, hp=null, shaper=null, agc=null, limiter=null;
+let ctx=null, bus=null, lp=null, hp=null, shaper=null, agc=null, limiter=null, outGain=null;
 let noiseGain=null, noiseFilter=null, noiseSrc=null;
 let songBuffer=null, songSrc=null, songGain=null;
 let hetOsc=null, hetGain=null;
+let volume=0.8, fallsOpen=false, fallsReady=false;
 const buffers={}, loading={};
 const state={freq:9640,target:9640,bandCenter:9640,playing:false,q:0,turn:0,qsb:1};
 
@@ -320,12 +326,13 @@ function ensureCtx(){
   shaper=ctx.createWaveShaper(); shaper.curve=tanhCurve(1.6); shaper.oversample="2x";
   agc=ctx.createDynamicsCompressor(); agc.threshold.value=-30; agc.ratio.value=4; agc.attack.value=0.05; agc.release.value=0.4;
   limiter=ctx.createDynamicsCompressor(); limiter.threshold.value=-3; limiter.ratio.value=20; limiter.attack.value=0.003; limiter.release.value=0.12;
-  bus.connect(hp); hp.connect(lp); lp.connect(shaper); shaper.connect(agc); agc.connect(limiter); limiter.connect(ctx.destination);
+  outGain=ctx.createGain(); outGain.gain.value=volume;
+  bus.connect(hp); hp.connect(lp); lp.connect(shaper); shaper.connect(agc); agc.connect(limiter); limiter.connect(outGain); outGain.connect(ctx.destination);
   // noise bed into the bus
   const len=ctx.sampleRate*2, nb=ctx.createBuffer(1,len,ctx.sampleRate), d=nb.getChannelData(0);
   for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
   noiseSrc=ctx.createBufferSource(); noiseSrc.buffer=nb; noiseSrc.loop=true;
-  noiseFilter=ctx.createBiquadFilter(); noiseFilter.type="bandpass"; noiseFilter.frequency.value=1600; noiseFilter.Q.value=0.7;
+  noiseFilter=ctx.createBiquadFilter(); const NB=BANDS[band]; noiseFilter.type=NB.nType; noiseFilter.frequency.value=NB.nFreq; noiseFilter.Q.value=NB.nQ;
   noiseGain=ctx.createGain(); noiseGain.gain.value=0;
   noiseSrc.connect(noiseFilter); noiseFilter.connect(noiseGain); noiseGain.connect(bus); noiseSrc.start();
   // song gain
@@ -459,7 +466,7 @@ function tick(ts){
   if(ts-qsbT>900){ qsbT=ts; state.qsb=0.85+Math.random()*0.3; }   // langsames Fading (QSB)
   // Nachbarn vorladen
   if(ctx){ for(const p of curPresets()) if(Math.abs(p.freq-state.freq)<2*p.win) loadBuffer(p.snip); }
-  if(ts-lastT>55){ lastT=ts;
+  if(fallsOpen&&fallsReady&&ts-lastT>55){ lastT=ts;
     tctx.clearRect(0,0,W,H); tctx.drawImage(cv,0,0);
     wctx.clearRect(0,0,W,H); wctx.drawImage(tmp,0,1); drawRow(0);
   }
@@ -467,7 +474,7 @@ function tick(ts){
 }
 
 /* ---------- tuning ---------- */
-const KHZ_PER_PX=6, WHEEL_STEP=12;
+const KHZ_PER_PX=2.5, WHEEL_STEP=6;
 function setTarget(f){ state.target=Math.max(FMIN,Math.min(FMAX,f)); state.turn=Math.min(1,state.turn+0.18); }
 const knob=document.getElementById("tuneKnob");
 let dragging=false,lastY=0;
@@ -505,7 +512,7 @@ document.getElementById("bandsel").addEventListener("click",e=>{
   const b=e.target.getAttribute("data-band"); if(!b||b===band) return;
   band=b;
   [...document.querySelectorAll("#bandsel div")].forEach(d=>d.classList.toggle("act",d.getAttribute("data-band")===b));
-  if(ctx) lp.frequency.value=BANDS[b].lpMax;
+  if(ctx){ lp.frequency.value=BANDS[b].lpMax; noiseFilter.type=BANDS[b].nType; noiseFilter.frequency.value=BANDS[b].nFreq; noiseFilter.Q.value=BANDS[b].nQ; }
   lastAxisCenter=null; recomputeVisible(); applyFreq();
 });
 
@@ -521,8 +528,31 @@ function loadTrack(file){
 }
 dropZone.addEventListener("click",()=>fileInput.click());
 fileInput.addEventListener("change",e=>{ if(e.target.files[0]) loadTrack(e.target.files[0]); });
-dropZone.addEventListener("dragover",e=>{e.preventDefault();});
-dropZone.addEventListener("drop",e=>{e.preventDefault(); if(e.dataTransfer.files&&e.dataTransfer.files[0]) loadTrack(e.dataTransfer.files[0]);});
+
+/* ---------- volume knob ---------- */
+const volKnob=document.getElementById("volKnob"), volInd=document.getElementById("volInd");
+function setVol(v){ volume=Math.max(0,Math.min(1,v));
+  volInd.style.transform="translateX(-50%) rotate("+(-135+volume*270)+"deg)";
+  if(outGain) outGain.gain.setTargetAtTime(volume, ctx?ctx.currentTime:0, 0.03);
+}
+let vdrag=false,vlastY=0;
+volKnob.addEventListener("pointerdown",e=>{vdrag=true;vlastY=e.clientY;volKnob.setPointerCapture(e.pointerId);});
+volKnob.addEventListener("pointermove",e=>{ if(!vdrag)return; const dy=vlastY-e.clientY; vlastY=e.clientY; setVol(volume+dy*0.01); });
+volKnob.addEventListener("pointerup",()=>{vdrag=false;});
+volKnob.addEventListener("wheel",e=>{ e.preventDefault(); setVol(volume+(e.deltaY<0?0.05:-0.05)); },{passive:false});
+
+/* ---------- waterfall toggle ---------- */
+const fallsEl=document.querySelector(".falls"), fallsToggle=document.getElementById("fallsToggle");
+fallsToggle.onclick=()=>{
+  fallsOpen=!fallsOpen;
+  fallsEl.classList.toggle("collapsed",!fallsOpen);
+  fallsToggle.textContent=(fallsOpen?"▾":"▸")+" SPEKTRUM";
+  if(fallsOpen){ fallsReady=false; setTimeout(()=>{initFalls();fallsReady=true;},40); }
+};
+
+/* ---------- drag & drop (ganzes Fenster) ---------- */
+window.addEventListener("dragover",e=>{e.preventDefault();});
+window.addEventListener("drop",e=>{ e.preventDefault(); const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) loadTrack(f); });
 
 /* ---------- clock ---------- */
 function clock(){ const d=new Date(),p=n=>String(n).padStart(2,"0");
@@ -531,9 +561,9 @@ function clock(){ const d=new Date(),p=n=>String(n).padStart(2,"0");
 }
 
 /* ---------- boot ---------- */
-window.addEventListener("resize",()=>{clearTimeout(window._rt);window._rt=setTimeout(initFalls,150);});
+window.addEventListener("resize",()=>{clearTimeout(window._rt);window._rt=setTimeout(()=>{if(fallsOpen)initFalls();},150);});
 setTimeout(()=>{
-  applyFreq(); initFalls(); requestAnimationFrame(tick);
+  applyFreq(); setVol(0.8); requestAnimationFrame(tick);
   scheduleInterference(); clock(); setInterval(clock,1000);
 },60);
 
