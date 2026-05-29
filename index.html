@@ -231,7 +231,7 @@
   </div>
 
   <div class="footer">
-    <div>RX MODE: <span class="v">USB</span> &nbsp;|&nbsp; IF SHIFT: <span class="v">0 Hz</span> &nbsp;|&nbsp; AUDIO: <span class="v">22 kHz</span></div>
+    <div>RX MODE: <span class="v">USB</span> &nbsp;|&nbsp; IF SHIFT: <span class="v">0 Hz</span> &nbsp;|&nbsp; AUDIO: <span class="v">22 kHz</span> &nbsp;|&nbsp; <span class="v">v39</span></div>
     <div class="tag">THE NOISE IS THE CONTENT.</div>
   </div>
 </div>
@@ -241,8 +241,8 @@
 const SNIPPETS = ["kw_fx_howling_01.mp3","kw_fx_metamorph_01.mp3","kw_fx_shortwave_01.mp3","kw_loop_01.mp3","kw_loop_02.mp3","kw_loop_03.mp3","kw_loop_04.mp3","kw_loop_05.mp3","kw_loop_06.mp3","kw_loop_07.mp3","kw_loop_08.mp3","kw_loop_09.mp3","kw_numbers_data_01.mp3","kw_numbers_m03_01.mp3","kw_numbers_m03_02.mp3","kw_numbers_m03_03.mp3","kw_numbers_noise_01.mp3","kw_numbers_papanov_01.mp3","kw_numbers_xpa2_01.mp3","kw_numbers_xpa2_02.mp3","kw_static_cracks_01.mp3","kw_static_emerg_01.mp3","kw_static_emerg_02.mp3","kw_static_freqnoise_01.mp3","kw_static_probe_01.mp3","kw_static_probe_02.mp3","kw_static_thunder_01.mp3","kw_static_thunder_02.mp3","kw_static_thunder_03.mp3","kw_static_thunder_04.mp3","kw_static_thunder_05.mp3","kw_station_china9640_01.mp3","kw_station_china9640_02.mp3","kw_station_china9640_03.mp3","kw_station_digi_01.mp3","kw_station_marti_01.mp3","kw_station_marti_02.mp3","kw_station_telecom_01.mp3","kw_tones_beat_01.mp3","kw_tones_beeploop_01.mp3","kw_tones_bleep_01.mp3","kw_tones_creepy_01.mp3","kw_tones_melodies_01.mp3","kw_tones_rhythmic_01.mp3","kw_tones_staticbeeps_01.mp3","kw_tones_statictones_01.mp3","kw_tones_zappy_01.mp3","kw_voice_chatter_01.mp3","kw_voice_faint_01.mp3","kw_voice_foreign_01.mp3","kw_voice_foreign_02.mp3","kw_voice_garble_01.mp3","kw_voice_ham_01.mp3","kw_voice_ham_02.mp3","kw_voice_ham_03.mp3","kw_voice_mumbled_01.mp3","kw_voice_mumbled_02.mp3","kw_voice_phonetic_01.mp3","kw_voice_pirates_01.mp3","kw_voice_pirates_02.mp3","kw_voice_preacher_01.mp3","kw_voice_spanish_01.mp3","kw_voice_spanish_02.mp3","kw_voicep_china_up3.mp3","kw_voicep_foreign_dn3.mp3","kw_voicep_foreign_up2.mp3","kw_voicep_garble_dn3.mp3","kw_voicep_garble_up4.mp3","kw_voicep_ham_dn3.mp3","kw_voicep_mumbled_dn2.mp3","kw_voicep_mumbled_up3.mp3","kw_voicep_phonetic_dn2.mp3","kw_voicep_phonetic_up4.mp3","kw_websdr_12072khz_01.mp3","kw_websdr_13412khz_01.mp3","kw_websdr_229khz_01.mp3","kw_websdr_2733khz_01.mp3","kw_websdr_569khz_01.mp3","kw_websdr_683khz_01.mp3","kw_websdr_746khz_01.mp3"];
 
 const FMIN=3000, FMAX=18000, SPAN=300, HALF=150;
-const KHZ_PER_PX=14;          // Knopf-Empfindlichkeit (Drag) — anpassbar
-const WHEEL_STEP=30;          // kHz pro Mausrad-Schritt — anpassbar
+const KHZ_PER_PX=4;           // Knopf-Empfindlichkeit (Drag) — anpassbar
+const WHEEL_STEP=10;          // kHz pro Mausrad-Schritt — anpassbar
 const PINNED={"kw_websdr_12072khz_01.mp3":12072,"kw_websdr_13412khz_01.mp3":13412,"kw_websdr_2733khz_01.mp3":2733};
 const LIVELY=new Set(["loop","numbers","station","voice","voicep"]);
 
