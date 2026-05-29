@@ -240,7 +240,7 @@
 /* ===================== ETAPPE 1 ENGINE ===================== */
 const SNIPPETS = ["kw_fx_howling_01.mp3","kw_fx_metamorph_01.mp3","kw_fx_shortwave_01.mp3","kw_loop_01.mp3","kw_loop_02.mp3","kw_loop_03.mp3","kw_loop_04.mp3","kw_loop_05.mp3","kw_loop_06.mp3","kw_loop_07.mp3","kw_loop_08.mp3","kw_loop_09.mp3","kw_numbers_data_01.mp3","kw_numbers_m03_01.mp3","kw_numbers_m03_02.mp3","kw_numbers_m03_03.mp3","kw_numbers_noise_01.mp3","kw_numbers_papanov_01.mp3","kw_numbers_xpa2_01.mp3","kw_numbers_xpa2_02.mp3","kw_static_cracks_01.mp3","kw_static_emerg_01.mp3","kw_static_emerg_02.mp3","kw_static_freqnoise_01.mp3","kw_static_probe_01.mp3","kw_static_probe_02.mp3","kw_static_thunder_01.mp3","kw_static_thunder_02.mp3","kw_static_thunder_03.mp3","kw_static_thunder_04.mp3","kw_static_thunder_05.mp3","kw_station_china9640_01.mp3","kw_station_china9640_02.mp3","kw_station_china9640_03.mp3","kw_station_digi_01.mp3","kw_station_marti_01.mp3","kw_station_marti_02.mp3","kw_station_telecom_01.mp3","kw_tones_beat_01.mp3","kw_tones_beeploop_01.mp3","kw_tones_bleep_01.mp3","kw_tones_creepy_01.mp3","kw_tones_melodies_01.mp3","kw_tones_rhythmic_01.mp3","kw_tones_staticbeeps_01.mp3","kw_tones_statictones_01.mp3","kw_tones_zappy_01.mp3","kw_voice_chatter_01.mp3","kw_voice_faint_01.mp3","kw_voice_foreign_01.mp3","kw_voice_foreign_02.mp3","kw_voice_garble_01.mp3","kw_voice_ham_01.mp3","kw_voice_ham_02.mp3","kw_voice_ham_03.mp3","kw_voice_mumbled_01.mp3","kw_voice_mumbled_02.mp3","kw_voice_phonetic_01.mp3","kw_voice_pirates_01.mp3","kw_voice_pirates_02.mp3","kw_voice_preacher_01.mp3","kw_voice_spanish_01.mp3","kw_voice_spanish_02.mp3","kw_voicep_china_up3.mp3","kw_voicep_foreign_dn3.mp3","kw_voicep_foreign_up2.mp3","kw_voicep_garble_dn3.mp3","kw_voicep_garble_up4.mp3","kw_voicep_ham_dn3.mp3","kw_voicep_mumbled_dn2.mp3","kw_voicep_mumbled_up3.mp3","kw_voicep_phonetic_dn2.mp3","kw_voicep_phonetic_up4.mp3","kw_websdr_12072khz_01.mp3","kw_websdr_13412khz_01.mp3","kw_websdr_229khz_01.mp3","kw_websdr_2733khz_01.mp3","kw_websdr_569khz_01.mp3","kw_websdr_683khz_01.mp3","kw_websdr_746khz_01.mp3"];
 
-const FMIN=3000, FMAX=18000, SPAN=140, HALF=70;
+const FMIN=3000, FMAX=18000, SPAN=300, HALF=150;
 const KHZ_PER_PX=14;          // Knopf-Empfindlichkeit (Drag) — anpassbar
 const WHEEL_STEP=30;          // kHz pro Mausrad-Schritt — anpassbar
 const PINNED={"kw_websdr_12072khz_01.mp3":12072,"kw_websdr_13412khz_01.mp3":13412,"kw_websdr_2733khz_01.mp3":2733};
@@ -279,8 +279,7 @@ function buildPresets(){
 /* ---------- audio ---------- */
 let ctx=null, master=null;
 const buffers={}, loading={};
-let current=null;
-const state={freq:9640,playing:false};
+const state={freq:9640,bandCenter:9640,playing:false};
 
 function ensureCtx(){
   if(ctx) return;
@@ -301,33 +300,37 @@ function nearestPreset(){
   for(const p of presets){ const d=Math.abs(p.freq-state.freq); if(d<bd){bd=d;best=p;} }
   return (best && Math.abs(best.freq-state.freq)<=best.win) ? best : null;
 }
-function fadeOutCurrent(){
-  const c=current; current=null; if(!c||!ctx) return;
-  try{ c.gain.gain.setTargetAtTime(0,ctx.currentTime,0.04); }catch(e){}
-  setTimeout(()=>{ try{c.src&&c.src.stop();}catch(e){} try{c.gain.disconnect();}catch(e){} },220);
-}
-function startPreset(p,g){
-  const token={}; const gain=ctx.createGain(); gain.gain.value=0; gain.connect(master);
-  current={preset:p,src:null,gain,token};
+// free-running sources: each in-band station keeps playing; tuning only changes its gain
+const nodes=new Map(); // snip -> {gain,src,p}
+function ensureNode(p){
+  if(nodes.has(p.snip)) return nodes.get(p.snip);
+  const gain=ctx.createGain(); gain.gain.value=0; gain.connect(master);
+  const rec={gain,src:null,p}; nodes.set(p.snip,rec);
   loadBuffer(p.snip).then(buf=>{
-    if(!buf||!current||current.token!==token||!state.playing) return;
-    const src=ctx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain); src.start();
-    current.src=src; gain.gain.setTargetAtTime(g,ctx.currentTime,0.09);
+    if(!buf||!nodes.has(p.snip)) return;
+    const src=ctx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain);
+    try{ src.start(0, Math.random()*Math.min(buf.duration,8)); }catch(e){ try{src.start();}catch(_){} }
+    rec.src=src;
   });
+  return rec;
+}
+function removeNode(snip){
+  const rec=nodes.get(snip); if(!rec) return; nodes.delete(snip);
+  try{ rec.gain.gain.setTargetAtTime(0,ctx.currentTime,0.05); }catch(e){}
+  setTimeout(()=>{ try{rec.src&&rec.src.stop();}catch(e){} try{rec.gain.disconnect();}catch(e){} },220);
 }
 function updateAudio(){
-  if(!ctx||!state.playing){ return; }
-  const p=nearestPreset();
-  if(!p){ if(current) fadeOutCurrent(); return; }
-  const g=p.peak*envGain(p.freq-state.freq,p.win);
-  if(current && current.preset===p){
-    if(current.gain) current.gain.gain.setTargetAtTime(g,ctx.currentTime,0.06);
-  } else {
-    if(current) fadeOutCurrent();
-    startPreset(p,g);
+  if(!ctx||!state.playing) return;
+  const inband=new Set();
+  for(const p of presets){
+    const df=p.freq-state.freq;
+    if(Math.abs(df)<=HALF){
+      inband.add(p.snip);
+      const rec=ensureNode(p);
+      rec.gain.gain.setTargetAtTime(p.peak*envGain(df,p.win),ctx.currentTime,0.06);
+    }
   }
-  // lazy preload neighbours within 2x window
-  for(const q of presets){ if(Math.abs(q.freq-state.freq)<2*q.win) loadBuffer(q.snip); }
+  for(const snip of [...nodes.keys()]) if(!inband.has(snip)) removeNode(snip);
 }
 
 /* ---------- visuals ---------- */
@@ -339,37 +342,45 @@ const smNeedle=document.getElementById("smNeedle");
 const stat=document.getElementById("stat");
 let visible=[];
 
-function recomputeVisible(){ visible=presets.filter(p=>Math.abs(p.freq-state.freq)<=HALF+5); }
+const cursor=document.querySelector(".cursor");
+
+function recomputeVisible(){ visible=presets.filter(p=>Math.abs(p.freq-state.bandCenter)<=HALF+10); }
 
 function setFreq(f){
   state.freq=Math.max(FMIN,Math.min(FMAX,f));
+  // fixed axis: band stays put, cursor moves; re-page only near the edge
+  const edge=HALF*0.82;
+  if(state.freq < state.bandCenter-edge) state.bandCenter=state.freq+edge;
+  if(state.freq > state.bandCenter+edge) state.bandCenter=state.freq-edge;
+  state.bandCenter=Math.max(FMIN+HALF,Math.min(FMAX-HALF,state.bandCenter));
   freqNum.textContent=Math.round(state.freq);
   const rot=((state.freq-FMIN)/(FMAX-FMIN))*1440-720;
   tuneInd.style.transform="translateX(-50%) rotate("+rot+"deg)";
-  // x-axis labels (window around freq)
-  const offs=[-70,-47,-23,0,23,47,70];
-  xaxis.innerHTML=offs.map(o=>'<span class="'+(o===0?'c':'')+'">'+Math.round(state.freq+o)+'</span>').join("")+'<span>kHz</span>';
-  const dOffs=[-60,-30,0,30,60];
-  dialNums.innerHTML=dOffs.map(o=>'<span>'+Math.round(state.freq+o)+'</span>').join("");
+  // cursor x = position of tuned freq on the fixed band
+  const cx=0.5+(state.freq-state.bandCenter)/SPAN;
+  cursor.style.left=(Math.max(0.02,Math.min(0.98,cx))*100)+"%";
+  // axis labels follow the fixed band
+  const offs=[-150,-100,-50,0,50,100,150];
+  xaxis.innerHTML=offs.map(o=>'<span class="'+(o===0?'c':'')+'">'+Math.round(state.bandCenter+o)+'</span>').join("")+'<span>kHz</span>';
+  const dOffs=[-120,-60,0,60,120];
+  dialNums.innerHTML=dOffs.map(o=>'<span>'+Math.round(state.bandCenter+o)+'</span>').join("");
   recomputeVisible();
   updateAudio();
-  // S-meter needle reflects strongest visible signal at cursor
   const p=nearestPreset();
   const sig=p?p.peak*envGain(p.freq-state.freq,p.win):0;
-  const ang=-60+sig*120;
-  smNeedle.setAttribute("transform","rotate("+ang+" 100 84)");
+  smNeedle.setAttribute("transform","rotate("+(-60+sig*120)+" 100 84)");
 }
 
 /* ---------- waterfall ---------- */
 const cv=document.getElementById("waterfall"), wctx=cv.getContext("2d");
 let W=0,H=0, tmp=document.createElement("canvas"), tctx=tmp.getContext("2d");
 function rowIntensity(xf){
-  let v=0.05+Math.random()*0.08;
+  let v=0.04+Math.random()*0.05;
   for(const p of visible){
-    const px=(p.freq-(state.freq-HALF))/SPAN;
-    const d=xf-px, wd=p.type==="websdr"?0.006:(LIVELY.has(p.type)?0.005:0.008);
+    const px=(p.freq-(state.bandCenter-HALF))/SPAN;
+    const d=xf-px, wd=p.type==="websdr"?0.0035:(LIVELY.has(p.type)?0.003:0.0055);
     const g=Math.exp(-(d*d)/(2*wd*wd));
-    if(g>0.002){ const amp=(LIVELY.has(p.type)?0.85:0.5)*(p.peak/0.8); v+=amp*g*(0.75+0.25*Math.random()); }
+    if(g>0.002){ const amp=(LIVELY.has(p.type)?0.85:0.55)*(p.peak/0.8); v+=amp*g*(0.8+0.2*Math.random()); }
   }
   return v;
 }
@@ -408,11 +419,11 @@ const playBtn=document.getElementById("playBtn");
 const PLAY_SVG='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 const PAUSE_SVG='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
 playBtn.onclick=()=>{
-  ensureCtx(); if(ctx.state==="suspended") ctx.resume();
+  ensureCtx();
   state.playing=!state.playing;
+  if(state.playing){ ctx.resume(); updateAudio(); } else { ctx.suspend(); }
   playBtn.innerHTML=state.playing?PAUSE_SVG:PLAY_SVG;
   stat.textContent=state.playing?"▶ EMPFANG":"PAUSE";
-  if(state.playing) updateAudio(); else fadeOutCurrent();
 };
 let scanAnim=null;
 function animateTo(target){
