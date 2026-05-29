@@ -43,6 +43,16 @@
   .fallstoggle{padding:6px 16px;font-size:10px;letter-spacing:.18em;color:var(--text-dim);cursor:pointer;
     border-bottom:1px solid var(--line);user-select:none}
   .fallstoggle:hover{color:var(--green-dim)}
+  .tline{position:relative;margin:12px 24px 4px;height:34px}
+  .tbar{position:absolute;left:0;right:0;top:22px;height:2px;border-radius:2px;
+    background:linear-gradient(90deg,rgba(70,224,125,.05),rgba(70,224,125,.55) 50%,rgba(70,224,125,.05));}
+  .tmark{position:absolute;top:14px;left:50%;width:3px;height:18px;background:var(--amber);transform:translateX(-50%);
+    box-shadow:0 0 10px rgba(244,179,56,.9);border-radius:2px}
+  .tmark::after{content:"";position:absolute;top:-7px;left:50%;transform:translateX(-50%);
+    border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--amber)}
+  .tlabel{position:absolute;top:0;font-size:9px;letter-spacing:.16em;color:var(--text-dim)}
+  .tlabel.l{left:0}.tlabel.r{right:0}
+  .tlabel.c{left:50%;transform:translateX(-50%);color:var(--green-dim);text-shadow:0 0 8px rgba(70,224,125,.4)}
   #waterfall{display:block;width:100%;height:100%}
   .yaxis{position:absolute;top:0;left:0;height:100%;width:54px;display:flex;flex-direction:column;
     justify-content:space-between;padding:10px 6px 26px 8px;font-size:10px;color:#5fd39a;opacity:.6;
@@ -171,6 +181,8 @@
     <div class="xaxis" id="xaxis"></div>
   </div>
 
+  <div class="tline"><div class="tlabel l">∙ leise</div><div class="tlabel c">SWEET SPOT</div><div class="tlabel r">leise ∙</div><div class="tbar"></div><div class="tmark" id="tmark"></div></div>
+
   <div class="rowmain">
     <div class="cell power"><div class="lbl">POWER</div><div class="pill-v"><i></i></div><div class="on">ON</div></div>
 
@@ -245,7 +257,7 @@
   </div>
 
   <div class="footer">
-    <div>RX MODE: <span class="v">USB</span> &nbsp;|&nbsp; IF SHIFT: <span class="v">0 Hz</span> &nbsp;|&nbsp; AUDIO: <span class="v">22 kHz</span> &nbsp;|&nbsp; <span class="v">v42-test</span></div>
+    <div>RX MODE: <span class="v">USB</span> &nbsp;|&nbsp; IF SHIFT: <span class="v">0 Hz</span> &nbsp;|&nbsp; AUDIO: <span class="v">22 kHz</span> &nbsp;|&nbsp; <span class="v">v43-line</span></div>
     <div class="tag">THE NOISE IS THE CONTENT.</div>
   </div>
 </div>
@@ -299,10 +311,11 @@ function buildBandPresets(b){
 for(const b in BANDS) BANDS[b].presets=buildBandPresets(b);
 // --- TEST-MODUS: nur EIN Preset (Static) auf 9640 kHz, alles andere aus ---
 const TEST_ONE=true;
+let LINE_MIN=FMIN, LINE_MAX=FMAX;
 if(TEST_ONE){
-  const s={snip:"kw_static_freqnoise_01.mp3",freq:9640,type:"static",win:55,po:0,peak:0.7};
-  const v={snip:"kw_station_china9640_01.mp3",freq:9760,type:"station",win:50,po:0,peak:0.8};
-  BANDS.FM.presets=[]; BANDS.MW.presets=[]; BANDS.SW.presets=[s,v];
+  const s={snip:"kw_static_freqnoise_01.mp3",freq:9640,type:"static",win:60,po:0,peak:0.7};
+  BANDS.FM.presets=[]; BANDS.MW.presets=[]; BANDS.SW.presets=[s];
+  LINE_MIN=9560; LINE_MAX=9720;            // Knopf dreht nur in diesem Bereich
 }
 function curPresets(){ return BANDS[band].presets; }
 
@@ -401,7 +414,9 @@ let visible=[], lastAxisCenter=null;
 function recomputeVisible(){ visible=curPresets().filter(p=>Math.abs(p.freq-state.bandCenter)<=HALF+10); }
 
 function applyFreq(){
-  state.freq=Math.max(FMIN,Math.min(FMAX,state.freq));
+  state.freq=Math.max(LINE_MIN,Math.min(LINE_MAX,state.freq));
+  const tm=document.getElementById("tmark");
+  if(tm) tm.style.left=((state.freq-LINE_MIN)/(LINE_MAX-LINE_MIN)*100)+"%";
   const edge=HALF*0.82;
   if(state.freq < state.bandCenter-edge) state.bandCenter=state.freq+edge;
   if(state.freq > state.bandCenter+edge) state.bandCenter=state.freq-edge;
@@ -475,7 +490,7 @@ function tick(ts){
 
 /* ---------- tuning ---------- */
 const KHZ_PER_PX=2.5, WHEEL_STEP=6;
-function setTarget(f){ state.target=Math.max(FMIN,Math.min(FMAX,f)); state.turn=Math.min(1,state.turn+0.18); }
+function setTarget(f){ state.target=Math.max(LINE_MIN,Math.min(LINE_MAX,f)); state.turn=Math.min(1,state.turn+0.18); }
 const knob=document.getElementById("tuneKnob");
 let dragging=false,lastY=0;
 knob.addEventListener("pointerdown",e=>{dragging=true;lastY=e.clientY;knob.setPointerCapture(e.pointerId);});
