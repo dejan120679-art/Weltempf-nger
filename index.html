@@ -240,7 +240,7 @@
   </div>
 
   <div class="footer">
-    <div>RX MODE: <span class="v">USB</span> &nbsp;|&nbsp; IF SHIFT: <span class="v">0 Hz</span> &nbsp;|&nbsp; AUDIO: <span class="v">22 kHz</span> &nbsp;|&nbsp; <span class="v">v41-test1</span></div>
+    <div>RX MODE: <span class="v">USB</span> &nbsp;|&nbsp; IF SHIFT: <span class="v">0 Hz</span> &nbsp;|&nbsp; AUDIO: <span class="v">22 kHz</span> &nbsp;|&nbsp; <span class="v">v41-test2</span></div>
     <div class="tag">THE NOISE IS THE CONTENT.</div>
   </div>
 </div>
@@ -296,7 +296,8 @@ for(const b in BANDS) BANDS[b].presets=buildBandPresets(b);
 const TEST_ONE=true;
 if(TEST_ONE){
   const s={snip:"kw_static_freqnoise_01.mp3",freq:9640,type:"static",win:30,po:0,peak:0.7};
-  BANDS.FM.presets=[]; BANDS.MW.presets=[]; BANDS.SW.presets=[s];
+  const v={snip:"kw_station_china9640_01.mp3",freq:9700,type:"station",win:22,po:0,peak:0.8};
+  BANDS.FM.presets=[]; BANDS.MW.presets=[]; BANDS.SW.presets=[s,v];
 }
 function curPresets(){ return BANDS[band].presets; }
 
