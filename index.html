@@ -33,6 +33,11 @@
   .status{display:flex;gap:18px;color:var(--text-dim);font-size:11px}
   .status .v{color:var(--text)}
   .status .snr{color:var(--green);text-shadow:0 0 10px rgba(70,224,125,.4)}
+  .bandsel{display:flex;gap:4px}
+  .bandsel div{padding:3px 12px;font-size:11px;letter-spacing:.14em;border:1px solid var(--line);border-radius:4px;
+    color:var(--text-dim);cursor:pointer}
+  .bandsel div.act{color:var(--green);border-color:var(--green-deep);background:rgba(70,224,125,.12);
+    box-shadow:inset 0 0 10px rgba(70,224,125,.15);text-shadow:0 0 8px rgba(70,224,125,.5)}
   .falls{position:relative;height:330px;background:#020912;border-bottom:1px solid var(--line)}
   #waterfall{display:block;width:100%;height:100%}
   .yaxis{position:absolute;top:0;left:0;height:100%;width:54px;display:flex;flex-direction:column;
@@ -144,6 +149,9 @@
 
   <div class="topbar">
     <div class="brand"><b>WORLD RECEIVER</b><span>SHORTWAVE RADIO</span></div>
+    <div class="bandsel" id="bandsel">
+      <div data-band="FM">FM</div><div data-band="MW">MW</div><div data-band="SW" class="act">SW</div>
+    </div>
     <div class="status">
       <div>UTC <span class="v" id="utc">--:--:--</span></div>
       <div>LOCAL <span class="v" id="loc">--:--:--</span></div>
@@ -163,10 +171,11 @@
 
     <div class="cell">
       <div class="lbl">TRACK</div>
-      <div class="drop">
+      <div class="drop" id="dropZone">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 16V7m0 0l-3 3m3-3l3 3"/><path d="M5 19h14"/></svg>
         <div class="t1">DRAG &amp; DROP AUDIO FILE</div><div class="t1">OR CLICK TO BROWSE</div>
       </div>
+      <input type="file" id="fileInput" accept="audio/*" style="display:none">
       <div class="status-line">STATUS: <b id="stat">BEREIT — PLAY DRÜCKEN</b></div>
     </div>
 
@@ -231,20 +240,27 @@
   </div>
 
   <div class="footer">
-    <div>RX MODE: <span class="v">USB</span> &nbsp;|&nbsp; IF SHIFT: <span class="v">0 Hz</span> &nbsp;|&nbsp; AUDIO: <span class="v">22 kHz</span> &nbsp;|&nbsp; <span class="v">v39</span></div>
+    <div>RX MODE: <span class="v">USB</span> &nbsp;|&nbsp; IF SHIFT: <span class="v">0 Hz</span> &nbsp;|&nbsp; AUDIO: <span class="v">22 kHz</span> &nbsp;|&nbsp; <span class="v">v40</span></div>
     <div class="tag">THE NOISE IS THE CONTENT.</div>
   </div>
 </div>
 
 <script>
-/* ===================== ETAPPE 1 ENGINE ===================== */
+
+/* ===================== ENGINE v40 ===================== */
 const SNIPPETS = ["kw_fx_howling_01.mp3","kw_fx_metamorph_01.mp3","kw_fx_shortwave_01.mp3","kw_loop_01.mp3","kw_loop_02.mp3","kw_loop_03.mp3","kw_loop_04.mp3","kw_loop_05.mp3","kw_loop_06.mp3","kw_loop_07.mp3","kw_loop_08.mp3","kw_loop_09.mp3","kw_numbers_data_01.mp3","kw_numbers_m03_01.mp3","kw_numbers_m03_02.mp3","kw_numbers_m03_03.mp3","kw_numbers_noise_01.mp3","kw_numbers_papanov_01.mp3","kw_numbers_xpa2_01.mp3","kw_numbers_xpa2_02.mp3","kw_static_cracks_01.mp3","kw_static_emerg_01.mp3","kw_static_emerg_02.mp3","kw_static_freqnoise_01.mp3","kw_static_probe_01.mp3","kw_static_probe_02.mp3","kw_static_thunder_01.mp3","kw_static_thunder_02.mp3","kw_static_thunder_03.mp3","kw_static_thunder_04.mp3","kw_static_thunder_05.mp3","kw_station_china9640_01.mp3","kw_station_china9640_02.mp3","kw_station_china9640_03.mp3","kw_station_digi_01.mp3","kw_station_marti_01.mp3","kw_station_marti_02.mp3","kw_station_telecom_01.mp3","kw_tones_beat_01.mp3","kw_tones_beeploop_01.mp3","kw_tones_bleep_01.mp3","kw_tones_creepy_01.mp3","kw_tones_melodies_01.mp3","kw_tones_rhythmic_01.mp3","kw_tones_staticbeeps_01.mp3","kw_tones_statictones_01.mp3","kw_tones_zappy_01.mp3","kw_voice_chatter_01.mp3","kw_voice_faint_01.mp3","kw_voice_foreign_01.mp3","kw_voice_foreign_02.mp3","kw_voice_garble_01.mp3","kw_voice_ham_01.mp3","kw_voice_ham_02.mp3","kw_voice_ham_03.mp3","kw_voice_mumbled_01.mp3","kw_voice_mumbled_02.mp3","kw_voice_phonetic_01.mp3","kw_voice_pirates_01.mp3","kw_voice_pirates_02.mp3","kw_voice_preacher_01.mp3","kw_voice_spanish_01.mp3","kw_voice_spanish_02.mp3","kw_voicep_china_up3.mp3","kw_voicep_foreign_dn3.mp3","kw_voicep_foreign_up2.mp3","kw_voicep_garble_dn3.mp3","kw_voicep_garble_up4.mp3","kw_voicep_ham_dn3.mp3","kw_voicep_mumbled_dn2.mp3","kw_voicep_mumbled_up3.mp3","kw_voicep_phonetic_dn2.mp3","kw_voicep_phonetic_up4.mp3","kw_websdr_12072khz_01.mp3","kw_websdr_13412khz_01.mp3","kw_websdr_229khz_01.mp3","kw_websdr_2733khz_01.mp3","kw_websdr_569khz_01.mp3","kw_websdr_683khz_01.mp3","kw_websdr_746khz_01.mp3"];
 
 const FMIN=3000, FMAX=18000, SPAN=300, HALF=150;
-const KHZ_PER_PX=4;           // Knopf-Empfindlichkeit (Drag) — anpassbar
-const WHEEL_STEP=10;          // kHz pro Mausrad-Schritt — anpassbar
+const TRACK_FREQ=9640;                 // wo dein Lied sitzt (auf allen Bändern)
 const PINNED={"kw_websdr_12072khz_01.mp3":12072,"kw_websdr_13412khz_01.mp3":13412,"kw_websdr_2733khz_01.mp3":2733};
-const LIVELY=new Set(["loop","numbers","station","voice","voicep"]);
+const LIVELY=new Set(["loop","numbers","station","voice","voicep","track"]);
+const BAND_OF={station:"FM",tones:"FM",fx:"FM",voice:"MW",numbers:"MW",loop:"SW",static:"SW",websdr:"SW",voicep:"SW"};
+const BANDS={
+  FM:{noise:0.020, filt:"lowpass",  ff:2600},
+  MW:{noise:0.060, filt:"bandpass", ff:1800},
+  SW:{noise:0.140, filt:"highpass", ff:1100}
+};
+let band="SW";
 
 function typeOf(n){
   if(n.startsWith("kw_loop"))return"loop";
@@ -260,31 +276,45 @@ function typeOf(n){
 }
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
 
-let presets=[];
-function buildPresets(){
+function buildBandPresets(b){
   const out=[], used=[];
-  for(const n in PINNED){ out.push({snip:n,freq:PINNED[n],type:"websdr",win:10,peak:0.9}); used.push(PINNED[n]); }
-  const rest=shuffle(SNIPPETS.filter(n=>!PINNED[n]));
-  for(const n of rest){
+  if(b==="SW") for(const n in PINNED){ out.push({snip:n,freq:PINNED[n],type:"websdr",win:10,peak:0.9}); used.push(PINNED[n]); }
+  const mine=shuffle(SNIPPETS.filter(n=>!(b==="SW"&&PINNED[n]) && BAND_OF[typeOf(n)]===b));
+  for(const n of mine){
     const t=typeOf(n), lively=LIVELY.has(t);
     let f,tries=0;
-    do{ f=FMIN+Math.random()*(FMAX-FMIN); tries++; } while(tries<300 && used.some(u=>Math.abs(u-f)<70));
+    do{ f=FMIN+Math.random()*(FMAX-FMIN); tries++; } while(tries<300 && used.some(u=>Math.abs(u-f)<90));
     used.push(f);
-    out.push({snip:n,freq:Math.round(f),type:t,win:lively?18:28,peak:lively?0.8:0.5});
+    out.push({snip:n,freq:Math.round(f),type:t,win:lively?20:30,peak:lively?0.8:0.55});
   }
   out.sort((a,b)=>a.freq-b.freq);
   return out;
 }
+for(const b in BANDS) BANDS[b].presets=buildBandPresets(b);
+
+/* ---------- track (dein Lied) ---------- */
+let trackBuffer=null;
+const trackPreset={FM:null,MW:null,SW:null};
+function makeTrackPresets(){ for(const b in BANDS) trackPreset[b]={snip:"__track__",freq:TRACK_FREQ,type:"track",win:28,peak:1.0,isTrack:true}; }
+function activePresets(){ const a=BANDS[band].presets.slice(); if(trackPreset[band]) a.push(trackPreset[band]); return a; }
 
 /* ---------- audio ---------- */
-let ctx=null, master=null;
-const buffers={}, loading={};
-const state={freq:9640,bandCenter:9640,playing:false};
+let ctx=null, master=null, noiseGain=null, noiseFilter=null, noiseSrc=null;
+const buffers={}, loading={}, nodes=new Map();
+const state={freq:TRACK_FREQ, target:TRACK_FREQ, bandCenter:TRACK_FREQ, playing:false};
 
 function ensureCtx(){
   if(ctx) return;
   ctx=new (window.AudioContext||window.webkitAudioContext)();
   master=ctx.createGain(); master.gain.value=0.9; master.connect(ctx.destination);
+  // noise bed
+  const len=ctx.sampleRate*2, buf=ctx.createBuffer(1,len,ctx.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+  noiseSrc=ctx.createBufferSource(); noiseSrc.buffer=buf; noiseSrc.loop=true;
+  noiseFilter=ctx.createBiquadFilter(); noiseFilter.type=BANDS[band].filt; noiseFilter.frequency.value=BANDS[band].ff;
+  noiseGain=ctx.createGain(); noiseGain.gain.value=0;
+  noiseSrc.connect(noiseFilter); noiseFilter.connect(noiseGain); noiseGain.connect(master);
+  noiseSrc.start();
 }
 function loadBuffer(name){
   if(buffers[name]) return Promise.resolve(buffers[name]);
@@ -294,43 +324,46 @@ function loadBuffer(name){
     .catch(e=>{delete loading[name]; console.warn("load fail",name,e); return null;});
   return loading[name];
 }
+function bufferFor(p){ return p.isTrack ? Promise.resolve(trackBuffer) : loadBuffer(p.snip); }
 function envGain(df,win){ const x=Math.abs(df)/win; if(x>=1)return 0; return 0.5*(1+Math.cos(Math.PI*x)); }
-function nearestPreset(){
-  let best=null,bd=1e9;
-  for(const p of presets){ const d=Math.abs(p.freq-state.freq); if(d<bd){bd=d;best=p;} }
-  return (best && Math.abs(best.freq-state.freq)<=best.win) ? best : null;
-}
-// free-running sources: each in-band station keeps playing; tuning only changes its gain
-const nodes=new Map(); // snip -> {gain,src,p}
+
+function keyOf(p){ return p.isTrack ? "__track__" : p.snip; }
 function ensureNode(p){
-  if(nodes.has(p.snip)) return nodes.get(p.snip);
+  const k=keyOf(p);
+  if(nodes.has(k)) return nodes.get(k);
   const gain=ctx.createGain(); gain.gain.value=0; gain.connect(master);
-  const rec={gain,src:null,p}; nodes.set(p.snip,rec);
-  loadBuffer(p.snip).then(buf=>{
-    if(!buf||!nodes.has(p.snip)) return;
+  const rec={gain,src:null}; nodes.set(k,rec);
+  bufferFor(p).then(buf=>{
+    if(!buf||!nodes.has(k)) return;
     const src=ctx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain);
     try{ src.start(0, Math.random()*Math.min(buf.duration,8)); }catch(e){ try{src.start();}catch(_){} }
     rec.src=src;
   });
   return rec;
 }
-function removeNode(snip){
-  const rec=nodes.get(snip); if(!rec) return; nodes.delete(snip);
+function removeNode(k){
+  const rec=nodes.get(k); if(!rec) return; nodes.delete(k);
   try{ rec.gain.gain.setTargetAtTime(0,ctx.currentTime,0.05); }catch(e){}
   setTimeout(()=>{ try{rec.src&&rec.src.stop();}catch(e){} try{rec.gain.disconnect();}catch(e){} },220);
 }
+function clearAllNodes(){ for(const k of [...nodes.keys()]) removeNode(k); }
+
 function updateAudio(){
   if(!ctx||!state.playing) return;
-  const inband=new Set();
-  for(const p of presets){
+  const aps=activePresets(); const keep=new Set(); let strongest=0;
+  for(const p of aps){
     const df=p.freq-state.freq;
     if(Math.abs(df)<=HALF){
-      inband.add(p.snip);
+      const k=keyOf(p); keep.add(k);
+      const e=envGain(df,p.win);
       const rec=ensureNode(p);
-      rec.gain.gain.setTargetAtTime(p.peak*envGain(df,p.win),ctx.currentTime,0.06);
+      rec.gain.gain.setTargetAtTime(p.peak*e,ctx.currentTime,0.06);
+      if(p.peak*e>strongest) strongest=p.peak*e;
     }
   }
-  for(const snip of [...nodes.keys()]) if(!inband.has(snip)) removeNode(snip);
+  for(const k of [...nodes.keys()]) if(!keep.has(k)) removeNode(k);
+  // noise ducks near a station, never fully silent
+  noiseGain.gain.setTargetAtTime(BANDS[band].noise*(1-0.8*strongest),ctx.currentTime,0.08);
 }
 
 /* ---------- visuals ---------- */
@@ -340,15 +373,13 @@ const xaxis=document.getElementById("xaxis");
 const dialNums=document.getElementById("dialNums");
 const smNeedle=document.getElementById("smNeedle");
 const stat=document.getElementById("stat");
-let visible=[];
-
 const cursor=document.querySelector(".cursor");
+let visible=[], lastAxisCenter=null;
 
-function recomputeVisible(){ visible=presets.filter(p=>Math.abs(p.freq-state.bandCenter)<=HALF+10); }
+function recomputeVisible(){ visible=activePresets().filter(p=>Math.abs(p.freq-state.bandCenter)<=HALF+10); }
 
-function setFreq(f){
-  state.freq=Math.max(FMIN,Math.min(FMAX,f));
-  // fixed axis: band stays put, cursor moves; re-page only near the edge
+function applyFreq(){
+  state.freq=Math.max(FMIN,Math.min(FMAX,state.freq));
   const edge=HALF*0.82;
   if(state.freq < state.bandCenter-edge) state.bandCenter=state.freq+edge;
   if(state.freq > state.bandCenter+edge) state.bandCenter=state.freq-edge;
@@ -356,18 +387,18 @@ function setFreq(f){
   freqNum.textContent=Math.round(state.freq);
   const rot=((state.freq-FMIN)/(FMAX-FMIN))*1440-720;
   tuneInd.style.transform="translateX(-50%) rotate("+rot+"deg)";
-  // cursor x = position of tuned freq on the fixed band
   const cx=0.5+(state.freq-state.bandCenter)/SPAN;
   cursor.style.left=(Math.max(0.02,Math.min(0.98,cx))*100)+"%";
-  // axis labels follow the fixed band
-  const offs=[-150,-100,-50,0,50,100,150];
-  xaxis.innerHTML=offs.map(o=>'<span class="'+(o===0?'c':'')+'">'+Math.round(state.bandCenter+o)+'</span>').join("")+'<span>kHz</span>';
-  const dOffs=[-120,-60,0,60,120];
-  dialNums.innerHTML=dOffs.map(o=>'<span>'+Math.round(state.bandCenter+o)+'</span>').join("");
-  recomputeVisible();
+  const ic=Math.round(state.bandCenter);
+  if(ic!==lastAxisCenter){
+    lastAxisCenter=ic;
+    const offs=[-150,-100,-50,0,50,100,150];
+    xaxis.innerHTML=offs.map(o=>'<span class="'+(o===0?'c':'')+'">'+(ic+o)+'</span>').join("")+'<span>kHz</span>';
+    dialNums.innerHTML=[-120,-60,0,60,120].map(o=>'<span>'+(ic+o)+'</span>').join("");
+    recomputeVisible();
+  }
   updateAudio();
-  const p=nearestPreset();
-  const sig=p?p.peak*envGain(p.freq-state.freq,p.win):0;
+  let sig=0; for(const p of activePresets()){ const e=envGain(p.freq-state.freq,p.win)*p.peak; if(e>sig)sig=e; }
   smNeedle.setAttribute("transform","rotate("+(-60+sig*120)+" 100 84)");
 }
 
@@ -378,9 +409,9 @@ function rowIntensity(xf){
   let v=0.04+Math.random()*0.05;
   for(const p of visible){
     const px=(p.freq-(state.bandCenter-HALF))/SPAN;
-    const d=xf-px, wd=p.type==="websdr"?0.0035:(LIVELY.has(p.type)?0.003:0.0055);
+    const d=xf-px, wd=p.isTrack?0.004:(p.type==="websdr"?0.0035:(LIVELY.has(p.type)?0.003:0.0055));
     const g=Math.exp(-(d*d)/(2*wd*wd));
-    if(g>0.002){ const amp=(LIVELY.has(p.type)?0.85:0.55)*(p.peak/0.8); v+=amp*g*(0.8+0.2*Math.random()); }
+    if(g>0.002){ const amp=(p.isTrack?1.0:(LIVELY.has(p.type)?0.85:0.55))*(p.peak/0.8); v+=amp*g*(0.8+0.2*Math.random()); }
   }
   return v;
 }
@@ -397,6 +428,10 @@ function initFalls(){
 }
 let lastT=0;
 function tick(ts){
+  // sanftes Gleiten zum Ziel
+  const dd=state.target-state.freq;
+  if(Math.abs(dd)>0.5){ state.freq+=dd*0.18; applyFreq(); }
+  else if(state.freq!==state.target){ state.freq=state.target; applyFreq(); }
   if(ts-lastT>55){ lastT=ts;
     tctx.clearRect(0,0,W,H); tctx.drawImage(cv,0,0);
     wctx.clearRect(0,0,W,H); wctx.drawImage(tmp,0,1); drawRow(0);
@@ -404,17 +439,19 @@ function tick(ts){
   requestAnimationFrame(tick);
 }
 
-/* ---------- tuning interactions ---------- */
+/* ---------- tuning ---------- */
+const KHZ_PER_PX=6, WHEEL_STEP=14;
+function setTarget(f){ state.target=Math.max(FMIN,Math.min(FMAX,f)); }
 const knob=document.getElementById("tuneKnob");
-let dragging=false, lastY=0;
+let dragging=false,lastY=0;
 knob.addEventListener("pointerdown",e=>{dragging=true;lastY=e.clientY;knob.setPointerCapture(e.pointerId);});
-knob.addEventListener("pointermove",e=>{ if(!dragging)return; const dy=lastY-e.clientY; lastY=e.clientY; setFreq(state.freq+dy*KHZ_PER_PX); });
-knob.addEventListener("pointerup",e=>{dragging=false;});
-knob.addEventListener("wheel",e=>{ e.preventDefault(); setFreq(state.freq+(e.deltaY<0?WHEEL_STEP:-WHEEL_STEP)); },{passive:false});
-document.getElementById("tuneUp").onclick=()=>setFreq(state.freq+WHEEL_STEP);
-document.getElementById("tuneDown").onclick=()=>setFreq(state.freq-WHEEL_STEP);
+knob.addEventListener("pointermove",e=>{ if(!dragging)return; const dy=lastY-e.clientY; lastY=e.clientY; setTarget(state.target+dy*KHZ_PER_PX); });
+knob.addEventListener("pointerup",()=>{dragging=false;});
+knob.addEventListener("wheel",e=>{ e.preventDefault(); setTarget(state.target+(e.deltaY<0?WHEEL_STEP:-WHEEL_STEP)); },{passive:false});
+document.getElementById("tuneUp").onclick=()=>setTarget(state.target+WHEEL_STEP);
+document.getElementById("tuneDown").onclick=()=>setTarget(state.target-WHEEL_STEP);
 
-/* ---------- play / scan / preset ---------- */
+/* ---------- play / scan / preset / band ---------- */
 const playBtn=document.getElementById("playBtn");
 const PLAY_SVG='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 const PAUSE_SVG='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
@@ -426,24 +463,45 @@ playBtn.onclick=()=>{
   stat.textContent=state.playing?"▶ EMPFANG":"PAUSE";
 };
 let scanAnim=null;
-function animateTo(target){
-  if(scanAnim) cancelAnimationFrame(scanAnim);
-  const start=state.freq, steps=22; let i=0;
-  (function step(){ i++; const k=i/steps; setFreq(start+(target-start)*(1-Math.cos(Math.PI*k))/2);
-    if(i<steps) scanAnim=requestAnimationFrame(step); })();
+function animateTo(t){ if(scanAnim)cancelAnimationFrame(scanAnim);
+  const start=state.target,steps=20;let i=0;
+  (function s(){i++;const k=i/steps;setTarget(start+(t-start)*(1-Math.cos(Math.PI*k))/2);if(i<steps)scanAnim=requestAnimationFrame(s);})();
 }
-document.getElementById("scanBtn").onclick=()=>{ const p=presets[Math.random()*presets.length|0]; animateTo(p.freq); };
-function neighbour(dir){
-  const sorted=presets.slice().sort((a,b)=>a.freq-b.freq);
-  if(dir>0){ for(const p of sorted) if(p.freq>state.freq+1){animateTo(p.freq);return;} animateTo(sorted[0].freq); }
-  else { for(let i=sorted.length-1;i>=0;i--) if(sorted[i].freq<state.freq-1){animateTo(sorted[i].freq);return;} animateTo(sorted[sorted.length-1].freq); }
+document.getElementById("scanBtn").onclick=()=>{ const a=BANDS[band].presets; if(a.length) animateTo(a[Math.random()*a.length|0].freq); };
+function neighbour(dir){ const s=activePresets().slice().sort((a,b)=>a.freq-b.freq);
+  if(dir>0){ for(const p of s) if(p.freq>state.freq+1){animateTo(p.freq);return;} if(s[0])animateTo(s[0].freq); }
+  else { for(let i=s.length-1;i>=0;i--) if(s[i].freq<state.freq-1){animateTo(s[i].freq);return;} if(s.length)animateTo(s[s.length-1].freq); }
 }
 document.getElementById("next").onclick=()=>neighbour(1);
 document.getElementById("prev").onclick=()=>neighbour(-1);
 
+document.getElementById("bandsel").addEventListener("click",e=>{
+  const b=e.target.getAttribute("data-band"); if(!b||b===band) return;
+  band=b;
+  [...document.querySelectorAll("#bandsel div")].forEach(d=>d.classList.toggle("act",d.getAttribute("data-band")===b));
+  if(ctx){ clearAllNodes(); noiseFilter.type=BANDS[b].filt; noiseFilter.frequency.value=BANDS[b].ff; }
+  lastAxisCenter=null; recomputeVisible(); applyFreq();
+});
+
+/* ---------- track load ---------- */
+const dropZone=document.getElementById("dropZone");
+const fileInput=document.getElementById("fileInput");
+function loadTrack(file){
+  ensureCtx();
+  stat.textContent="LADE…";
+  file.arrayBuffer().then(a=>ctx.decodeAudioData(a)).then(buf=>{
+    trackBuffer=buf; makeTrackPresets();
+    stat.textContent="LIED: "+file.name.slice(0,22);
+    recomputeVisible(); updateAudio();
+  }).catch(e=>{ stat.textContent="⚠ DATEI-FEHLER"; console.warn(e); });
+}
+dropZone.addEventListener("click",()=>fileInput.click());
+fileInput.addEventListener("change",e=>{ if(e.target.files[0]) loadTrack(e.target.files[0]); });
+dropZone.addEventListener("dragover",e=>{e.preventDefault();});
+dropZone.addEventListener("drop",e=>{e.preventDefault(); if(e.dataTransfer.files[0]) loadTrack(e.dataTransfer.files[0]);});
+
 /* ---------- clock ---------- */
-function clock(){ const d=new Date();
-  const p=n=>String(n).padStart(2,"0");
+function clock(){ const d=new Date(),p=n=>String(n).padStart(2,"0");
   document.getElementById("utc").textContent=p(d.getUTCHours())+":"+p(d.getUTCMinutes())+":"+p(d.getUTCSeconds());
   document.getElementById("loc").textContent=p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());
 }
@@ -451,11 +509,10 @@ function clock(){ const d=new Date();
 /* ---------- boot ---------- */
 window.addEventListener("resize",()=>{clearTimeout(window._rt);window._rt=setTimeout(initFalls,150);});
 setTimeout(()=>{
-  presets=buildPresets();
-  setFreq(9640);
-  initFalls(); requestAnimationFrame(tick);
+  applyFreq(); initFalls(); requestAnimationFrame(tick);
   clock(); setInterval(clock,1000);
 },60);
+
 </script>
 </body>
 </html>
