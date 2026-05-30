@@ -21,7 +21,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v51</span>
+      <span class="text-amber-400 text-xs">v52</span>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -38,6 +38,7 @@
       <div class="text-xs tracking-widest text-slate-400 mb-5">EMPFANG (ziehen zum Tunen — nur im grünen Bereich)</div>
       <div id="line" class="relative h-16 mb-2 select-none touch-none cursor-ew-resize">
         <div id="curve" class="absolute" style="top:0;bottom:0;animation:wfBreathe 4s ease-in-out infinite"></div>
+        <div id="ticks" class="absolute" style="top:0;bottom:0;left:0;right:0"></div>
         <div id="dot" class="absolute" style="top:6px;transform:translateX(-50%);width:10px;height:10px;border-radius:50%;background:#e8f6ee;box-shadow:0 0 8px rgba(255,255,255,.8)"></div>
       </div>
       <div id="meters"></div>
@@ -77,7 +78,9 @@ function makePreset(name){
   const lp=2200+(1-dist)*3400;
   const noiseChar={hp:r()<0.5, freq:1200+r()*2600, q:0.6+r()*1.2};
   const n=r(); const nIntf=n<0.3?0:(n<0.8?1:2);
-  const intf=[]; for(let i=0;i<nIntf;i++) intf.push(pick(ALL));
+  // Jede Störung hat einen EIGENEN Punkt auf der Linie (eigene "Frequenz") + schmale Breite.
+  // Nur in der Nähe dieses Punktes hörbar — kein Teppich über die ganze Linie.
+  const intf=[]; for(let i=0;i<nIntf;i++) intf.push({name:pick(ALL), pos:0.08+r()*0.84, width:0.07+r()*0.08});
   const leftSeed=r(), rightSeed=r();
   // linke und rechte Seite völlig eigenständig (eigene Rauschfärbung, Verzerrung, Endklang):
   const L={ noiseFreq:700+r()*2800, noiseQ:0.5+r()*1.6, hp:r()<0.5, art:0.6+r()*1.1, end:0.84+r()*0.12 };
@@ -95,12 +98,14 @@ const A={};                              // audio nodes
 let cur=null;                            // current preset
 let mark=0.5;                            // Orientierungspunkt 0..1 im grünen Bereich
 let intfActive=0;
+const loads={};                          // Snippet-Ladestatus: name -> 'loading'|'ok'|'fail'
+let lastName=null;                       // SCAN: nie zweimal derselbe Sender
 let playing=false;
 const breath={t:0,v:1};
 
 // ---- DOM ----
 const $=id=>document.getElementById(id);
-const lineEl=$("line"), curveEl=$("curve"), dotEl=$("dot");
+const lineEl=$("line"), curveEl=$("curve"), dotEl=$("dot"), ticksEl=$("ticks");
 function setStatus(t){ $("status").textContent=t; }
 
 function ensure(){
@@ -146,10 +151,29 @@ function quality(){ if(!cur) return 0; return curveAt(cur, mark, P.sweet); }
 
 function loadIntf(c){
   if(!A.ctx) return;
-  c.intf.forEach(n=>{
-    if(A.bufs[n]) return;
-    fetch("audio/"+n).then(r=>r.arrayBuffer()).then(b=>A.ctx.decodeAudioData(b)).then(buf=>{A.bufs[n]=buf;}).catch(()=>{});
+  c.intf.forEach(e=>{
+    if(A.bufs[e.name]){ loads[e.name]="ok"; renderIntfInfo(); renderTicks(); return; }
+    loads[e.name]="loading"; renderIntfInfo(); renderTicks();
+    fetch("audio/"+e.name).then(r=>{ if(!r.ok) throw 0; return r.arrayBuffer(); })
+      .then(b=>A.ctx.decodeAudioData(b))
+      .then(buf=>{ A.bufs[e.name]=buf; loads[e.name]="ok"; renderIntfInfo(); renderTicks(); })
+      .catch(()=>{ loads[e.name]="fail"; renderIntfInfo(); renderTicks(); });
   });
+}
+function renderTicks(){
+  if(!cur){ ticksEl.innerHTML=""; return; }
+  ticksEl.innerHTML=cur.intf.map(e=>{
+    const st=loads[e.name];
+    const col=st==="ok"?"rgba(70,224,125,.85)":st==="fail"?"rgba(239,75,70,.85)":"rgba(244,179,56,.75)";
+    return '<div class="absolute" style="top:2px;left:'+toScreen(e.pos)+'%;transform:translateX(-50%);width:2px;height:54px;background:'+col+'"></div>';
+  }).join("");
+}
+function renderIntfInfo(){
+  if(!cur || !cur.intf.length){ $("m-intf").innerHTML='<span class="text-slate-200">nur Rauschen</span>'; return; }
+  $("m-intf").innerHTML=cur.intf.map(e=>{
+    const st=loads[e.name], col=st==="ok"?"#46e07d":st==="fail"?"#ef4b46":"#f4b338", sym=st==="ok"?"✓":st==="fail"?"✗":"…";
+    return '<span style="color:'+col+'">'+e.name.replace("kw_","").replace(".mp3","")+' '+sym+'</span>';
+  }).join("  ·  ");
 }
 
 function renderCurve(arr){
@@ -170,7 +194,8 @@ function rebuildCurve(c){
 function setMarkPct(p){ dotEl.style.left=p+"%"; }
 
 function newPreset(){
-  const c=makePreset(pick(ALL));
+  let name=pick(ALL); if(ALL.length>1){ while(name===lastName) name=pick(ALL); } lastName=name;
+  const c=makePreset(name);
   const L=0.7+c.leftSeed*0.7, R=0.7+c.rightSeed*0.7;
   c.sweetFrac=L/(L+R);                    // links ≠ rechts → Sweet sitzt asymmetrisch
   cur=c; mark=0.5;                         // Orientierungspunkt startet in der Mitte der Linie
@@ -178,22 +203,24 @@ function newPreset(){
   loadIntf(c);
   setMarkPct(toScreen(0.5));
   rebuildCurve(c);
+  renderTicks();
   $("m-name").textContent=c.name;
   $("m-dist").textContent=c.dist<0.33?"nah":(c.dist<0.66?"mittel":"fern");
-  $("m-intf").textContent=c.intf.length? c.intf.map(x=>x.replace("kw_","").replace(".mp3","")).join(", ") : "nur Rauschen";
+  renderIntfInfo();
 }
 
 // ---- interference scheduler (kommt & geht, kein Loop) ----
 (function step(){
   if(A.ctx && playing && cur && cur.intf.length){
-    const q=quality();
-    if(Math.random() < (1-q)*0.6+0.05){
-      const name=pick(cur.intf), b=A.bufs[name];
-      if(b){
+    // Nähe des Orientierungspunkts zu jedem Stör-Punkt: nur nahe dran ist die Störung hörbar.
+    const cands=cur.intf.map(e=>({e, prox:Math.max(0,1-Math.abs(mark-e.pos)/e.width)})).filter(x=>x.prox>0.02);
+    if(cands.length){
+      const pickc=cands[Math.random()*cands.length|0], prox=pickc.prox, b=A.bufs[pickc.e.name];
+      if(b && Math.random() < prox*0.55+0.03){
         const dur=2.5+Math.random()*5, off=Math.random()*Math.max(0.1,b.duration-dur);
         const s=A.ctx.createBufferSource(); s.buffer=b;
         const g=A.ctx.createGain(); g.gain.value=0; s.connect(g); g.connect(A.bus);
-        const t=A.ctx.currentTime, lvl=(0.3+(1-q)*0.6)*cur.strength;
+        const t=A.ctx.currentTime, lvl=(0.2+prox*0.7)*cur.strength;   // lauter je näher am Stör-Punkt
         g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(lvl,t+.3);
         g.gain.setValueAtTime(lvl,t+dur-.4); g.gain.linearRampToValueAtTime(0,t+dur);
         try{ s.start(t,off,dur+.05); }catch(e){}
