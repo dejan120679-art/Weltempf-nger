@@ -23,7 +23,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v54</span>
+      <span class="text-amber-400 text-xs">v55</span>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -87,21 +87,26 @@ function bump(x){ x=Math.abs(x); return x>=1?0:0.5*(1+Math.cos(Math.PI*x)); }
 
 // ---- EIN Preset als Landschaft (fest, wiederholbar) ----
 function makeLandscape(){
+  // 7 saubere Stellen — je eigene Lautstärke (gain), Helligkeit (tone), Klarheit (h)
   const peaks=[
-    {pos:0.07,w:0.05,h:1.00},{pos:0.21,w:0.05,h:0.82},{pos:0.36,w:0.05,h:1.00},
-    {pos:0.50,w:0.05,h:0.72},{pos:0.64,w:0.05,h:0.92},{pos:0.79,w:0.05,h:0.84},
-    {pos:0.93,w:0.05,h:1.00}
+    {pos:0.06,w:0.030,h:1.00,gain:1.00,tone:1.05},
+    {pos:0.20,w:0.028,h:0.80,gain:0.72,tone:0.75},
+    {pos:0.34,w:0.032,h:0.95,gain:0.92,tone:1.20},
+    {pos:0.48,w:0.026,h:0.66,gain:0.55,tone:0.60},
+    {pos:0.62,w:0.030,h:0.90,gain:0.85,tone:0.95},
+    {pos:0.77,w:0.028,h:0.80,gain:0.70,tone:0.85},
+    {pos:0.92,w:0.032,h:1.00,gain:1.00,tone:1.25}
   ];
-  // art = Verzerrungs-Anteil, het = Pfeifton-Anteil — je Charakter verschieden, nur in der Zone aktiv
+  // 6 feste Stör-Zonen dazwischen, schmal -> klar getrennt. art=Verzerrung, het=Pfeifton (je Charakter)
   const zones=[
-    {pos:0.14,width:0.055,type:"voices", art:0.3,het:0.0},
-    {pos:0.285,width:0.05,type:"numbers",art:0.4,het:0.15},
-    {pos:0.43,width:0.055,type:"tones",  art:0.2,het:1.0},
-    {pos:0.57,width:0.05, type:"static", art:1.6,het:0.0},
-    {pos:0.715,width:0.055,type:"voices",art:0.3,het:0.0},
-    {pos:0.86,width:0.05, type:"websdr", art:0.6,het:0.4}
+    {pos:0.13,width:0.030,type:"voices", art:0.3,het:0.0},
+    {pos:0.27,width:0.028,type:"numbers",art:0.4,het:0.15},
+    {pos:0.41,width:0.032,type:"tones",  art:0.2,het:1.0},
+    {pos:0.55,width:0.028,type:"static", art:1.6,het:0.0},
+    {pos:0.70,width:0.030,type:"voices", art:0.3,het:0.0},
+    {pos:0.85,width:0.028,type:"websdr", art:0.6,het:0.4}
   ];
-  return { name:"Bandabschnitt A", peaks, zones, floor:0.16 };
+  return { name:"Bandabschnitt A", peaks, zones, floor:0.15 };
 }
 function qAt(t){ if(!cur) return 0; let e=0; for(const p of cur.peaks){ e=Math.max(e, p.h*bump((t-p.pos)/p.w)); } return Math.max(cur.floor,e); }
 function quality(){ return cur?qAt(mark):0; }
@@ -201,48 +206,52 @@ function newPreset(){
 // ---- Stör-Scheduler: pro Zone fester Platz, wechselnder Inhalt ----
 (function step(){
   if(A.ctx && playing && cur){
-    const cands=cur.zones.map(z=>({z,prox:zoneProx(z)})).filter(x=>x.prox>0.04);
-    if(cands.length){
-      const c=cands[Math.random()*cands.length|0], prox=c.prox;
-      if(Math.random() < prox*0.6+0.04){
-        const pool=POOL[c.z.type]||[]; const name=pool.length?pick(pool):null;
+    let zb=null,zp=0; for(const z of cur.zones){ const pr=zoneProx(z); if(pr>zp){ zp=pr; zb=z; } }
+    if(zb && zp>0.25){                                  // nur wirklich nah an einer Zone
+      if(Math.random() < zp*0.6){
+        const pool=POOL[zb.type]||[]; const name=pool.length?pick(pool):null;
         const b=name&&A.bufs[name];
         if(b){
           const dur=2+Math.random()*4, off=Math.random()*Math.max(0.1,b.duration-dur);
           const s=A.ctx.createBufferSource(); s.buffer=b;
           const g=A.ctx.createGain(); g.gain.value=0; s.connect(g); g.connect(A.bus);
-          const t=A.ctx.currentTime, lvl=(0.2+prox*0.6);     // lauter je näher an der Zone
+          const t=A.ctx.currentTime, lvl=zp*zp*0.9;      // fällt zum Rand auf 0 -> nur an der Zone hörbar
           g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(lvl,t+.3);
           g.gain.setValueAtTime(lvl,t+dur-.4); g.gain.linearRampToValueAtTime(0,t+dur);
           try{ s.start(t,off,dur+.05); }catch(e){}
           intfActive=lvl;
           setTimeout(()=>{ try{s.stop();}catch(e){} try{g.disconnect();}catch(e){} intfActive=0; },(dur+.3)*1000);
-        } else if(name){ loadOne(name); }   // beim ersten Mal nachladen, spielt dann nächstes Mal
+        } else if(name){ loadOne(name); }
       }
     }
   }
-  setTimeout(step,350+Math.random()*1300);
+  setTimeout(step,350+Math.random()*1100);
 })();
 
 // ---- animation frame ----
 (function frame(ts){
   if(A.ctx && playing && cur){
-    const q=quality(), now=A.ctx.currentTime;
+    const now=A.ctx.currentTime;
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.9+Math.random()*0.12; }
+    // dominante saubere Stelle bestimmt Lautstärke/Helligkeit (jede Stelle klingt anders)
+    let pk=null,pe=0; for(const p of cur.peaks){ const e=p.h*bump((mark-p.pos)/p.w); if(e>pe){ pe=e; pk=p; } }
+    const q=Math.max(cur.floor,pe);
     const duck=1-(P.duck/100)*intfActive*0.6;
-    let songLvl=q*breath.v*Math.max(0,duck);
-    songLvl=Math.max(0.12, songLvl);                 // Lied nie ganz weg
-    A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.05);
+    const vol = pk? (1-pe) + pe*pk.gain : 1;            // an der Stelle = gain, in der Lücke ~1 (leiser Boden)
+    let songLvl=q*vol*breath.v*Math.max(0,duck);
+    songLvl=Math.max(0.10, songLvl);                    // Lied nie ganz weg
+    A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.03);
     const noiseLvl=(P.noise/100)*(0.12+(1-q)*0.9);
-    A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.08);
-    A.lp.frequency.setTargetAtTime(1300+q*(P.lp-1300),now,.06);
-    // Artefakte/Heterodyn NUR in der Nähe einer Zone (kein Dauer-Effekt über die ganze Strecke)
+    A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.05);
+    const tone = pk? pk.tone : 1;
+    A.lp.frequency.setTargetAtTime(1300+q*(P.lp*tone-1300),now,.03);
+    // Artefakte/Heterodyn scharf nur an der nächsten Zone (quadratischer Abfall)
     let zb=null,zp=0; for(const z of cur.zones){ const pr=zoneProx(z); if(pr>zp){ zp=pr; zb=z; } }
-    const artW=zb?zb.art:0, hetW=zb?zb.het:0;
-    A.shaper.curve=tanhCurve(1.4+(P.art/100)*zp*2.6*artW);     // Verzerrung lokal, je Zone verschieden
-    A.hetGain.gain.setTargetAtTime((P.het/1000)*hetW*zp*0.12,now,.05); // Pfeifton nur an Pfeif-Zonen
-    A.hetOsc.frequency.setTargetAtTime(420+(zb?zb.pos:0.5)*1600,now,.08);
-    if(frames++%5===0){ updateMeters(q,songLvl,noiseLvl,intfActive); setBest(q>0.85); }
+    const zz=zp*zp, artW=zb?zb.art:0, hetW=zb?zb.het:0;
+    A.shaper.curve=tanhCurve(1.4+(P.art/100)*zz*2.6*artW);
+    A.hetGain.gain.setTargetAtTime((P.het/1000)*hetW*zz*0.12,now,.04);
+    A.hetOsc.frequency.setTargetAtTime(420+(zb?zb.pos:0.5)*1600,now,.06);
+    if(frames++%5===0){ updateMeters(q,songLvl,noiseLvl,intfActive); setBest(q>0.8); }
   }
   requestAnimationFrame(frame);
 })();
