@@ -23,7 +23,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v56</span>
+      <span class="text-amber-400 text-xs">v57</span>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -120,7 +120,6 @@ const A={};
 let cur=null;
 let mark=0.5;
 let intfActive=0;
-let activeIntf=null;   // aktuell spielende Störung: {src,g,zone}
 const loads={};
 let playing=false;
 let frames=0;
@@ -155,7 +154,7 @@ function ensure(){
   const hetOsc=ctx.createOscillator(); hetOsc.type="sine"; hetOsc.frequency.value=700;
   const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(bus); hetOsc.start();
   Object.assign(A,{ctx,bus,hp,lp,shaper,agc,lim,out,noiseGain,noiseFilt,songGain,hetOsc,hetGain,songBuf:null,songSrc:null,bufs:{}});
-  preloadZones();
+  preloadZones(); startZones();
   return A;
 }
 
@@ -165,12 +164,27 @@ function loadOne(name){
   loads[name]="loading";
   fetch("audio/"+name).then(r=>{ if(!r.ok) throw 0; return r.arrayBuffer(); })
     .then(b=>A.ctx.decodeAudioData(b))
-    .then(buf=>{ A.bufs[name]=buf; loads[name]="ok"; })
+    .then(buf=>{ A.bufs[name]=buf; loads[name]="ok"; startZones(); })
     .catch(()=>{ loads[name]="fail"; });
 }
-function preloadZones(){
-  if(!A.ctx || !cur) return;
-  cur.zones.forEach(z=>{ const pool=POOL[z.type]||[]; for(let i=0;i<3 && pool.length;i++) loadOne(pick(pool)); });
+// Jede Zone = eine durchgehend "sendende" Station: eine feste Aufnahme, die dauerhaft im
+// Hintergrund läuft (Loop). Nur die Nähe regelt die Lautstärke -> tunt man weg und zurück,
+// läuft sie nahtlos weiter (kein Neustart, kein anderes Snippet).
+function preloadZones(){ if(!A.ctx||!cur) return; cur.zones.forEach(z=>{ if(z.snippet) loadOne(z.snippet); }); }
+function startZones(){
+  if(!A.ctx||!cur) return;
+  cur.zones.forEach(z=>{
+    if(z.src || !z.snippet) return;
+    const buf=A.bufs[z.snippet]; if(!buf) return;
+    const g=A.ctx.createGain(); g.gain.value=0; g.connect(A.bus);
+    const s=A.ctx.createBufferSource(); s.buffer=buf; s.loop=true; s.connect(g);
+    try{ s.start(0, Math.random()*buf.duration); }catch(e){}
+    z.src=s; z.g=g;
+  });
+}
+function stopZones(){
+  if(!cur) return;
+  cur.zones.forEach(z=>{ if(z.src){ try{z.src.stop();}catch(e){} } if(z.g){ try{z.g.disconnect();}catch(e){} } z.src=null; z.g=null; });
 }
 
 // ---- Empfangs-Landschaft zeichnen ----
@@ -197,44 +211,26 @@ function renderIntfInfo(){
 }
 
 function newPreset(){
+  stopZones();
   cur=makeLandscape(); mark=0.5;
+  cur.zones.forEach(z=>{ const pool=POOL[z.type]||[]; z.snippet=pool.length?pick(pool):null; z.src=null; z.g=null; });
   setMarkPct(toScreen(0.5));
   rebuildCurve(); renderTicks(); renderIntfInfo();
   $("m-name").textContent=cur.name;
-  preloadZones();
+  preloadZones(); startZones();
 }
 
-// ---- Stör-Scheduler: pro Zone fester Platz, wechselnder Inhalt ----
-(function step(){
-  if(A.ctx && playing && cur && !activeIntf){
-    let zb=null,zp=0; for(const z of cur.zones){ const pr=zoneProx(z); if(pr>zp){ zp=pr; zb=z; } }
-    if(zb && zp>0.25 && Math.random()<zp*0.6){
-      const pool=POOL[zb.type]||[]; const name=pool.length?pick(pool):null;
-      const b=name&&A.bufs[name];
-      if(b){
-        const dur=2+Math.random()*4, off=Math.random()*Math.max(0.1,b.duration-dur);
-        const s=A.ctx.createBufferSource(); s.buffer=b;
-        const g=A.ctx.createGain(); g.gain.value=0; s.connect(g); g.connect(A.bus);
-        try{ s.start(A.ctx.currentTime,off,dur+.05); }catch(e){}
-        activeIntf={src:s,g,zone:zb};                 // Pegel regelt die frame-Schleife live nach Nähe
-        s.onended=()=>{ if(activeIntf&&activeIntf.src===s){ try{g.disconnect();}catch(e){} activeIntf=null; intfActive=0; } };
-      } else if(name){ loadOne(name); }
-    }
-  }
-  setTimeout(step,300+Math.random()*900);
-})();
+// ---- Zonen laufen als durchgehende Stationen (siehe startZones) — kein Scheduler nötig ----
 
 // ---- animation frame ----
 (function frame(ts){
   if(A.ctx && playing && cur){
     const now=A.ctx.currentTime;
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.9+Math.random()*0.12; }
-    // laufende Störung live nach aktueller Nähe regeln — weg vom Strich = sofort leiser/aus
-    if(activeIntf){
-      const pr=zoneProx(activeIntf.zone);
-      if(pr<0.05){ try{activeIntf.src.stop();}catch(e){} try{activeIntf.g.disconnect();}catch(e){} activeIntf=null; intfActive=0; }
-      else { intfActive=pr*pr*0.9; activeIntf.g.gain.setTargetAtTime(intfActive,now,.025); }
-    } else intfActive=0;
+    // jede Zone-Station läuft durchgehend; nur Lautstärke folgt der Nähe (sofort da beim Tunen)
+    let im=0;
+    for(const z of cur.zones){ if(z.g){ const pr=zoneProx(z), lvl=pr*pr*0.9; z.g.gain.setTargetAtTime(lvl,now,.03); if(lvl>im) im=lvl; } }
+    intfActive=im;
     // dominante saubere Stelle bestimmt Lautstärke/Helligkeit (jede Stelle klingt anders)
     let pk=null,pe=0; for(const p of cur.peaks){ const e=p.h*bump((mark-p.pos)/p.w); if(e>pe){ pe=e; pk=p; } }
     const q=Math.max(cur.floor,pe);
@@ -275,7 +271,7 @@ function loadSong(file){
 function togglePlay(){
   ensure();
   playing=!playing; $("play").textContent=playing?"⏸ PAUSE":"▶ PLAY";
-  if(playing){ A.ctx.resume(); startSong(); setStatus("▶ läuft"); } else { A.ctx.suspend(); }
+  if(playing){ A.ctx.resume(); startSong(); startZones(); setStatus("▶ läuft"); } else { A.ctx.suspend(); }
 }
 
 // ---- drag — Anschlag an den Enden ----
