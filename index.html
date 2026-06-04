@@ -23,7 +23,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v55</span>
+      <span class="text-amber-400 text-xs">v56</span>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -120,6 +120,7 @@ const A={};
 let cur=null;
 let mark=0.5;
 let intfActive=0;
+let activeIntf=null;   // aktuell spielende Störung: {src,g,zone}
 const loads={};
 let playing=false;
 let frames=0;
@@ -205,27 +206,22 @@ function newPreset(){
 
 // ---- Stör-Scheduler: pro Zone fester Platz, wechselnder Inhalt ----
 (function step(){
-  if(A.ctx && playing && cur){
+  if(A.ctx && playing && cur && !activeIntf){
     let zb=null,zp=0; for(const z of cur.zones){ const pr=zoneProx(z); if(pr>zp){ zp=pr; zb=z; } }
-    if(zb && zp>0.25){                                  // nur wirklich nah an einer Zone
-      if(Math.random() < zp*0.6){
-        const pool=POOL[zb.type]||[]; const name=pool.length?pick(pool):null;
-        const b=name&&A.bufs[name];
-        if(b){
-          const dur=2+Math.random()*4, off=Math.random()*Math.max(0.1,b.duration-dur);
-          const s=A.ctx.createBufferSource(); s.buffer=b;
-          const g=A.ctx.createGain(); g.gain.value=0; s.connect(g); g.connect(A.bus);
-          const t=A.ctx.currentTime, lvl=zp*zp*0.9;      // fällt zum Rand auf 0 -> nur an der Zone hörbar
-          g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(lvl,t+.3);
-          g.gain.setValueAtTime(lvl,t+dur-.4); g.gain.linearRampToValueAtTime(0,t+dur);
-          try{ s.start(t,off,dur+.05); }catch(e){}
-          intfActive=lvl;
-          setTimeout(()=>{ try{s.stop();}catch(e){} try{g.disconnect();}catch(e){} intfActive=0; },(dur+.3)*1000);
-        } else if(name){ loadOne(name); }
-      }
+    if(zb && zp>0.25 && Math.random()<zp*0.6){
+      const pool=POOL[zb.type]||[]; const name=pool.length?pick(pool):null;
+      const b=name&&A.bufs[name];
+      if(b){
+        const dur=2+Math.random()*4, off=Math.random()*Math.max(0.1,b.duration-dur);
+        const s=A.ctx.createBufferSource(); s.buffer=b;
+        const g=A.ctx.createGain(); g.gain.value=0; s.connect(g); g.connect(A.bus);
+        try{ s.start(A.ctx.currentTime,off,dur+.05); }catch(e){}
+        activeIntf={src:s,g,zone:zb};                 // Pegel regelt die frame-Schleife live nach Nähe
+        s.onended=()=>{ if(activeIntf&&activeIntf.src===s){ try{g.disconnect();}catch(e){} activeIntf=null; intfActive=0; } };
+      } else if(name){ loadOne(name); }
     }
   }
-  setTimeout(step,350+Math.random()*1100);
+  setTimeout(step,300+Math.random()*900);
 })();
 
 // ---- animation frame ----
@@ -233,6 +229,12 @@ function newPreset(){
   if(A.ctx && playing && cur){
     const now=A.ctx.currentTime;
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.9+Math.random()*0.12; }
+    // laufende Störung live nach aktueller Nähe regeln — weg vom Strich = sofort leiser/aus
+    if(activeIntf){
+      const pr=zoneProx(activeIntf.zone);
+      if(pr<0.05){ try{activeIntf.src.stop();}catch(e){} try{activeIntf.g.disconnect();}catch(e){} activeIntf=null; intfActive=0; }
+      else { intfActive=pr*pr*0.9; activeIntf.g.gain.setTargetAtTime(intfActive,now,.025); }
+    } else intfActive=0;
     // dominante saubere Stelle bestimmt Lautstärke/Helligkeit (jede Stelle klingt anders)
     let pk=null,pe=0; for(const p of cur.peaks){ const e=p.h*bump((mark-p.pos)/p.w); if(e>pe){ pe=e; pk=p; } }
     const q=Math.max(cur.floor,pe);
@@ -240,17 +242,17 @@ function newPreset(){
     const vol = pk? (1-pe) + pe*pk.gain : 1;            // an der Stelle = gain, in der Lücke ~1 (leiser Boden)
     let songLvl=q*vol*breath.v*Math.max(0,duck);
     songLvl=Math.max(0.10, songLvl);                    // Lied nie ganz weg
-    A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.03);
+    A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.015);
     const noiseLvl=(P.noise/100)*(0.12+(1-q)*0.9);
-    A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.05);
+    A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.04);
     const tone = pk? pk.tone : 1;
-    A.lp.frequency.setTargetAtTime(1300+q*(P.lp*tone-1300),now,.03);
+    A.lp.frequency.setTargetAtTime(1300+q*(P.lp*tone-1300),now,.015);
     // Artefakte/Heterodyn scharf nur an der nächsten Zone (quadratischer Abfall)
     let zb=null,zp=0; for(const z of cur.zones){ const pr=zoneProx(z); if(pr>zp){ zp=pr; zb=z; } }
     const zz=zp*zp, artW=zb?zb.art:0, hetW=zb?zb.het:0;
     A.shaper.curve=tanhCurve(1.4+(P.art/100)*zz*2.6*artW);
-    A.hetGain.gain.setTargetAtTime((P.het/1000)*hetW*zz*0.12,now,.04);
-    A.hetOsc.frequency.setTargetAtTime(420+(zb?zb.pos:0.5)*1600,now,.06);
+    A.hetGain.gain.setTargetAtTime((P.het/1000)*hetW*zz*0.12,now,.02);
+    A.hetOsc.frequency.setTargetAtTime(420+(zb?zb.pos:0.5)*1600,now,.04);
     if(frames++%5===0){ updateMeters(q,songLvl,noiseLvl,intfActive); setBest(q>0.8); }
   }
   requestAnimationFrame(frame);
