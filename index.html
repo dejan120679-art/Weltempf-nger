@@ -23,7 +23,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v53</span>
+      <span class="text-amber-400 text-xs">v54</span>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -92,13 +92,14 @@ function makeLandscape(){
     {pos:0.50,w:0.05,h:0.72},{pos:0.64,w:0.05,h:0.92},{pos:0.79,w:0.05,h:0.84},
     {pos:0.93,w:0.05,h:1.00}
   ];
+  // art = Verzerrungs-Anteil, het = Pfeifton-Anteil — je Charakter verschieden, nur in der Zone aktiv
   const zones=[
-    {pos:0.14,width:0.055,type:"voices", art:1.2,het:0.5},
-    {pos:0.285,width:0.05,type:"numbers",art:0.9,het:0.3},
-    {pos:0.43,width:0.055,type:"tones",  art:1.0,het:0.9},
-    {pos:0.57,width:0.05, type:"static", art:1.4,het:0.4},
-    {pos:0.715,width:0.055,type:"voices",art:1.1,het:0.6},
-    {pos:0.86,width:0.05, type:"websdr", art:1.0,het:0.7}
+    {pos:0.14,width:0.055,type:"voices", art:0.3,het:0.0},
+    {pos:0.285,width:0.05,type:"numbers",art:0.4,het:0.15},
+    {pos:0.43,width:0.055,type:"tones",  art:0.2,het:1.0},
+    {pos:0.57,width:0.05, type:"static", art:1.6,het:0.0},
+    {pos:0.715,width:0.055,type:"voices",art:0.3,het:0.0},
+    {pos:0.86,width:0.05, type:"websdr", art:0.6,het:0.4}
   ];
   return { name:"Bandabschnitt A", peaks, zones, floor:0.16 };
 }
@@ -235,13 +236,12 @@ function newPreset(){
     const noiseLvl=(P.noise/100)*(0.12+(1-q)*0.9);
     A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.08);
     A.lp.frequency.setTargetAtTime(1300+q*(P.lp-1300),now,.06);
-    // nächste Zone bestimmt Artefakt-/Heterodyn-Charakter
+    // Artefakte/Heterodyn NUR in der Nähe einer Zone (kein Dauer-Effekt über die ganze Strecke)
     let zb=null,zp=0; for(const z of cur.zones){ const pr=zoneProx(z); if(pr>zp){ zp=pr; zb=z; } }
-    const art=zb?zb.art:1, het=zb?zb.het:0.3;
-    A.shaper.curve=tanhCurve(1.4+(P.art/100)*(1-q)*3*art);
-    const b2=4*q*(1-q);
-    A.hetGain.gain.setTargetAtTime((P.het/1000)*het*(0.4+b2)*0.12,now,.05);
-    A.hetOsc.frequency.setTargetAtTime(300+zp*1500+(1-q)*1200,now,.08);
+    const artW=zb?zb.art:0, hetW=zb?zb.het:0;
+    A.shaper.curve=tanhCurve(1.4+(P.art/100)*zp*2.6*artW);     // Verzerrung lokal, je Zone verschieden
+    A.hetGain.gain.setTargetAtTime((P.het/1000)*hetW*zp*0.12,now,.05); // Pfeifton nur an Pfeif-Zonen
+    A.hetOsc.frequency.setTargetAtTime(420+(zb?zb.pos:0.5)*1600,now,.08);
     if(frames++%5===0){ updateMeters(q,songLvl,noiseLvl,intfActive); setBest(q>0.85); }
   }
   requestAnimationFrame(frame);
