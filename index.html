@@ -13,17 +13,16 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · Modell "Landschaft" (ein Preset = lange Strecke).
-  7 feste Aufklar-Stellen (Lied klar), 6 feste Stör-Zonen dazwischen.
-  Stör-Zone: fester Platz + fester Charakter, aber wechselnder Snippet aus einem Topf
-  (zufälliger Snippet + zufälliger Einstieg) -> gleicher Ort, nie identischer Klang.
-  Lied bleibt überall mindestens leise hörbar (Boden), klart an den Stellen auf.
+  Weltempfänger – Werkbank SW · Modell "Landschaft / Stationen".
+  Jede Station: klares Lied in der Mitte, eigene durchgehend laufende Störung rundherum.
+  Beim Reintunen blendet die Störung zurück WÄHREND das Lied klarer wird (Überblendung),
+  weiche Flanke. Zwischen Stationen ruhig. Lied verschwindet nie ganz.
 -->
 <div class="min-h-screen text-slate-200 font-mono text-sm p-4" id="root">
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v57</span>
+      <span class="text-amber-400 text-xs">v58</span>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -45,7 +44,7 @@
       </div>
       <div id="meters"></div>
       <div class="mt-2 text-xs text-slate-400">
-        Preset: <span id="m-name" class="text-slate-200">—</span> · Zonen: <span id="m-intf" class="text-slate-200">—</span>
+        Preset: <span id="m-name" class="text-slate-200">—</span> · Stationen: <span id="m-intf" class="text-slate-200">—</span>
         <span id="m-best" class="ml-2 px-2 py-0.5 rounded border border-slate-700 text-slate-500">SIGNAL</span>
       </div>
     </div>
@@ -57,8 +56,8 @@
     </div>
 
     <div class="text-xs text-slate-500">
-      Ein Preset als Landschaft: 7 Aufklar-Stellen (grün hoch), 6 feste Stör-Zonen (farbige Striche) dazwischen.
-      Lied verschwindet nie ganz; in den Zonen wechselt der Stör-Klang bei jedem Durchtunen.
+      Jede Station: klares Lied in der Mitte (grün hoch), eigene Störung rundherum (farbiger Strich = Mitte).
+      Beim Reintunen blendet die Störung zurück, während das Lied klarer wird. Lied verschwindet nie ganz.
     </div>
   </div>
 </div>
@@ -67,7 +66,6 @@
 // ---- Audio-Bibliothek: alle 80 echten Snippets aus audio/ ----
 const ALL = ["kw_fx_howling_01.mp3","kw_fx_metamorph_01.mp3","kw_fx_shortwave_01.mp3","kw_loop_01.mp3","kw_loop_02.mp3","kw_loop_03.mp3","kw_loop_04.mp3","kw_loop_05.mp3","kw_loop_06.mp3","kw_loop_07.mp3","kw_loop_08.mp3","kw_loop_09.mp3","kw_numbers_data_01.mp3","kw_numbers_m03_01.mp3","kw_numbers_m03_02.mp3","kw_numbers_m03_03.mp3","kw_numbers_noise_01.mp3","kw_numbers_papanov_01.mp3","kw_numbers_xpa2_01.mp3","kw_numbers_xpa2_02.mp3","kw_static_cracks_01.mp3","kw_static_emerg_01.mp3","kw_static_emerg_02.mp3","kw_static_freqnoise_01.mp3","kw_static_probe_01.mp3","kw_static_probe_02.mp3","kw_static_thunder_01.mp3","kw_static_thunder_02.mp3","kw_static_thunder_03.mp3","kw_static_thunder_04.mp3","kw_static_thunder_05.mp3","kw_station_china9640_01.mp3","kw_station_china9640_02.mp3","kw_station_china9640_03.mp3","kw_station_digi_01.mp3","kw_station_marti_01.mp3","kw_station_marti_02.mp3","kw_station_telecom_01.mp3","kw_tones_beat_01.mp3","kw_tones_beeploop_01.mp3","kw_tones_bleep_01.mp3","kw_tones_creepy_01.mp3","kw_tones_melodies_01.mp3","kw_tones_rhythmic_01.mp3","kw_tones_staticbeeps_01.mp3","kw_tones_statictones_01.mp3","kw_tones_zappy_01.mp3","kw_voice_chatter_01.mp3","kw_voice_faint_01.mp3","kw_voice_foreign_01.mp3","kw_voice_foreign_02.mp3","kw_voice_garble_01.mp3","kw_voice_ham_01.mp3","kw_voice_ham_02.mp3","kw_voice_ham_03.mp3","kw_voice_mumbled_01.mp3","kw_voice_mumbled_02.mp3","kw_voice_phonetic_01.mp3","kw_voice_pirates_01.mp3","kw_voice_pirates_02.mp3","kw_voice_preacher_01.mp3","kw_voice_spanish_01.mp3","kw_voice_spanish_02.mp3","kw_voicep_china_up3.mp3","kw_voicep_foreign_dn3.mp3","kw_voicep_foreign_up2.mp3","kw_voicep_garble_dn3.mp3","kw_voicep_garble_up4.mp3","kw_voicep_ham_dn3.mp3","kw_voicep_mumbled_dn2.mp3","kw_voicep_mumbled_up3.mp3","kw_voicep_phonetic_dn2.mp3","kw_voicep_phonetic_up4.mp3","kw_websdr_12072khz_01.mp3","kw_websdr_13412khz_01.mp3","kw_websdr_229khz_01.mp3","kw_websdr_2733khz_01.mp3","kw_websdr_569khz_01.mp3","kw_websdr_683khz_01.mp3","kw_websdr_746khz_01.mp3"];
 
-// Snippet-Töpfe nach Charakter (für wechselnden Inhalt pro Zone)
 const POOL = {
   voices:  ALL.filter(n=>n.includes("voice")),
   numbers: ALL.filter(n=>n.includes("numbers")),
@@ -78,42 +76,28 @@ const POOL = {
 };
 const TYPECOL={voices:"#46e07d",numbers:"#f4b338",tones:"#7db4ff",static:"#ef4b46",station:"#c084fc",websdr:"#22d3d3"};
 
-const GREEN={l:10,r:90};                 // Tune-Strecke (Bildschirm-%) — breit, ganze Landschaft
+const GREEN={l:10,r:90};
 const toScreen=p=>GREEN.l+p*(GREEN.r-GREEN.l);
 
 function pick(a){ return a[Math.random()*a.length|0]; }
 function tanhCurve(k){ const n=1024,c=new Float32Array(n); for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(k*x);} return c; }
 function bump(x){ x=Math.abs(x); return x>=1?0:0.5*(1+Math.cos(Math.PI*x)); }
 
-// ---- EIN Preset als Landschaft (fest, wiederholbar) ----
+// ---- EIN Preset: 6 Stationen. pw=Klar-Breite (Lied), cw=Einzugsbreite (Störung rundherum).
 function makeLandscape(){
-  // 7 saubere Stellen — je eigene Lautstärke (gain), Helligkeit (tone), Klarheit (h)
-  const peaks=[
-    {pos:0.06,w:0.030,h:1.00,gain:1.00,tone:1.05},
-    {pos:0.20,w:0.028,h:0.80,gain:0.72,tone:0.75},
-    {pos:0.34,w:0.032,h:0.95,gain:0.92,tone:1.20},
-    {pos:0.48,w:0.026,h:0.66,gain:0.55,tone:0.60},
-    {pos:0.62,w:0.030,h:0.90,gain:0.85,tone:0.95},
-    {pos:0.77,w:0.028,h:0.80,gain:0.70,tone:0.85},
-    {pos:0.92,w:0.032,h:1.00,gain:1.00,tone:1.25}
+  const stations=[
+    {pos:0.08,pw:0.045,cw:0.090,h:1.00,gain:1.00,tone:1.05,type:"voices"},
+    {pos:0.24,pw:0.042,cw:0.085,h:0.82,gain:0.74,tone:0.78,type:"numbers"},
+    {pos:0.40,pw:0.048,cw:0.095,h:0.95,gain:0.92,tone:1.18,type:"tones"},
+    {pos:0.56,pw:0.042,cw:0.085,h:0.70,gain:0.60,tone:0.65,type:"static"},
+    {pos:0.72,pw:0.045,cw:0.090,h:0.90,gain:0.85,tone:0.95,type:"voices"},
+    {pos:0.90,pw:0.048,cw:0.095,h:1.00,gain:1.00,tone:1.25,type:"websdr"}
   ];
-  // 6 feste Stör-Zonen dazwischen, schmal -> klar getrennt. art=Verzerrung, het=Pfeifton (je Charakter)
-  const zones=[
-    {pos:0.13,width:0.030,type:"voices", art:0.3,het:0.0},
-    {pos:0.27,width:0.028,type:"numbers",art:0.4,het:0.15},
-    {pos:0.41,width:0.032,type:"tones",  art:0.2,het:1.0},
-    {pos:0.55,width:0.028,type:"static", art:1.6,het:0.0},
-    {pos:0.70,width:0.030,type:"voices", art:0.3,het:0.0},
-    {pos:0.85,width:0.028,type:"websdr", art:0.6,het:0.4}
-  ];
-  return { name:"Bandabschnitt A", peaks, zones, floor:0.15 };
+  return { name:"Bandabschnitt A", stations, floor:0.14 };
 }
-function qAt(t){ if(!cur) return 0; let e=0; for(const p of cur.peaks){ e=Math.max(e, p.h*bump((t-p.pos)/p.w)); } return Math.max(cur.floor,e); }
-function quality(){ return cur?qAt(mark):0; }
-function zoneProx(z){ return Math.max(0,1-Math.abs(mark-z.pos)/z.width); }
+function qAt(t){ if(!cur) return 0; let e=0; for(const s of cur.stations){ e=Math.max(e, s.h*bump((t-s.pos)/s.pw)); } return Math.max(cur.floor,e); }
 
-// ---- feste Startwerte aus dem Werkbank-Tuning ----
-// het: 0–100, voller Ausschlag = altes ~10. duck: Störungs-Verdrängung (Live-Wert).
+// ---- feste Startwerte ----
 const P={sweet:22,noise:3,art:73,het:90,duck:70,lp:3785};
 
 const A={};
@@ -158,7 +142,7 @@ function ensure(){
   return A;
 }
 
-// ---- Snippets laden ----
+// ---- Snippets laden + Stationen als Dauer-Quellen ----
 function loadOne(name){
   if(!A.ctx || A.bufs[name] || loads[name]==="loading") return;
   loads[name]="loading";
@@ -167,24 +151,21 @@ function loadOne(name){
     .then(buf=>{ A.bufs[name]=buf; loads[name]="ok"; startZones(); })
     .catch(()=>{ loads[name]="fail"; });
 }
-// Jede Zone = eine durchgehend "sendende" Station: eine feste Aufnahme, die dauerhaft im
-// Hintergrund läuft (Loop). Nur die Nähe regelt die Lautstärke -> tunt man weg und zurück,
-// läuft sie nahtlos weiter (kein Neustart, kein anderes Snippet).
-function preloadZones(){ if(!A.ctx||!cur) return; cur.zones.forEach(z=>{ if(z.snippet) loadOne(z.snippet); }); }
+function preloadZones(){ if(!A.ctx||!cur) return; cur.stations.forEach(s=>{ if(s.snippet) loadOne(s.snippet); }); }
 function startZones(){
   if(!A.ctx||!cur) return;
-  cur.zones.forEach(z=>{
-    if(z.src || !z.snippet) return;
-    const buf=A.bufs[z.snippet]; if(!buf) return;
+  cur.stations.forEach(s=>{
+    if(s.src||!s.snippet) return;
+    const buf=A.bufs[s.snippet]; if(!buf) return;
     const g=A.ctx.createGain(); g.gain.value=0; g.connect(A.bus);
-    const s=A.ctx.createBufferSource(); s.buffer=buf; s.loop=true; s.connect(g);
-    try{ s.start(0, Math.random()*buf.duration); }catch(e){}
-    z.src=s; z.g=g;
+    const src=A.ctx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(g);
+    try{ src.start(0, Math.random()*buf.duration); }catch(e){}
+    s.src=src; s.g=g;
   });
 }
 function stopZones(){
   if(!cur) return;
-  cur.zones.forEach(z=>{ if(z.src){ try{z.src.stop();}catch(e){} } if(z.g){ try{z.g.disconnect();}catch(e){} } z.src=null; z.g=null; });
+  cur.stations.forEach(s=>{ if(s.src){try{s.src.stop();}catch(e){}} if(s.g){try{s.g.disconnect();}catch(e){}} s.src=null; s.g=null; });
 }
 
 // ---- Empfangs-Landschaft zeichnen ----
@@ -197,58 +178,61 @@ function renderCurve(arr){
     return '<div class="absolute rounded-sm" style="left:'+(i*w)+'%;width:'+(w+0.6)+'%;top:50%;transform:translateY(-50%);height:'+h+'px;background:rgba(70,224,125,'+a+');box-shadow:'+shadow+'"></div>';
   }).join("");
 }
-function rebuildCurve(){ const N=90,arr=[]; for(let i=0;i<N;i++) arr.push(qAt(i/(N-1))); renderCurve(arr); }
+function rebuildCurve(){ const N=120,arr=[]; for(let i=0;i<N;i++) arr.push(qAt(i/(N-1))); renderCurve(arr); }
 function renderTicks(){
   if(!cur){ ticksEl.innerHTML=""; return; }
-  ticksEl.innerHTML=cur.zones.map(z=>{
-    const col=TYPECOL[z.type]||"#999";
-    return '<div class="absolute" title="'+z.type+'" style="top:2px;left:'+toScreen(z.pos)+'%;transform:translateX(-50%);width:3px;height:54px;background:'+col+';opacity:.8"></div>';
+  ticksEl.innerHTML=cur.stations.map(s=>{
+    const col=TYPECOL[s.type]||"#999";
+    return '<div class="absolute" title="'+s.type+'" style="top:2px;left:'+toScreen(s.pos)+'%;transform:translateX(-50%);width:3px;height:54px;background:'+col+';opacity:.5"></div>';
   }).join("");
 }
 function renderIntfInfo(){
   if(!cur){ $("m-intf").textContent="—"; return; }
-  $("m-intf").innerHTML=cur.zones.map(z=>{ const col=TYPECOL[z.type]||"#999"; return '<span style="color:'+col+'">'+z.type+'</span>'; }).join("  ·  ");
+  $("m-intf").innerHTML=cur.stations.map(s=>{ const col=TYPECOL[s.type]||"#999"; return '<span style="color:'+col+'">'+s.type+'</span>'; }).join("  ·  ");
 }
 
 function newPreset(){
   stopZones();
   cur=makeLandscape(); mark=0.5;
-  cur.zones.forEach(z=>{ const pool=POOL[z.type]||[]; z.snippet=pool.length?pick(pool):null; z.src=null; z.g=null; });
+  cur.stations.forEach(s=>{ const pool=POOL[s.type]||[]; s.snippet=pool.length?pick(pool):null; s.src=null; s.g=null; });
   setMarkPct(toScreen(0.5));
   rebuildCurve(); renderTicks(); renderIntfInfo();
   $("m-name").textContent=cur.name;
   preloadZones(); startZones();
 }
 
-// ---- Zonen laufen als durchgehende Stationen (siehe startZones) — kein Scheduler nötig ----
-
-// ---- animation frame ----
+// ---- animation frame: Lied + Störung blenden über ----
 (function frame(ts){
   if(A.ctx && playing && cur){
     const now=A.ctx.currentTime;
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.9+Math.random()*0.12; }
-    // jede Zone-Station läuft durchgehend; nur Lautstärke folgt der Nähe (sofort da beim Tunen)
-    let im=0;
-    for(const z of cur.zones){ if(z.g){ const pr=zoneProx(z), lvl=pr*pr*0.9; z.g.gain.setTargetAtTime(lvl,now,.03); if(lvl>im) im=lvl; } }
-    intfActive=im;
-    // dominante saubere Stelle bestimmt Lautstärke/Helligkeit (jede Stelle klingt anders)
-    let pk=null,pe=0; for(const p of cur.peaks){ const e=p.h*bump((mark-p.pos)/p.w); if(e>pe){ pe=e; pk=p; } }
+    // klarste Station bestimmt Lied (Lautstärke/Helligkeit je Station verschieden)
+    let pk=null,pe=0; for(const s of cur.stations){ const e=s.h*bump((mark-s.pos)/s.pw); if(e>pe){ pe=e; pk=s; } }
     const q=Math.max(cur.floor,pe);
+    // Störung jeder Station: Einzug * (1 - Klarheit) -> blendet mit dem Lied über
+    let im=0, sb=null,sf=0;
+    for(const s of cur.stations){
+      const inSt=bump((mark-s.pos)/s.cw), songEnv=bump((mark-s.pos)/s.pw);
+      const fade=inSt*(1-songEnv);                 // hoch am Rand der Station, 0 in der Mitte
+      if(s.g){ const lvl=fade*0.9; s.g.gain.setTargetAtTime(lvl,now,.05); if(lvl>im) im=lvl; }
+      if(fade>sf){ sf=fade; sb=s; }
+    }
+    intfActive=im;
     const duck=1-(P.duck/100)*intfActive*0.6;
-    const vol = pk? (1-pe) + pe*pk.gain : 1;            // an der Stelle = gain, in der Lücke ~1 (leiser Boden)
+    const vol = pk? (1-pe) + pe*pk.gain : 1;
     let songLvl=q*vol*breath.v*Math.max(0,duck);
-    songLvl=Math.max(0.10, songLvl);                    // Lied nie ganz weg
-    A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.015);
+    songLvl=Math.max(0.10, songLvl);                // Lied nie ganz weg
+    A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.02);
     const noiseLvl=(P.noise/100)*(0.12+(1-q)*0.9);
-    A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.04);
+    A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.05);
     const tone = pk? pk.tone : 1;
-    A.lp.frequency.setTargetAtTime(1300+q*(P.lp*tone-1300),now,.015);
-    // Artefakte/Heterodyn scharf nur an der nächsten Zone (quadratischer Abfall)
-    let zb=null,zp=0; for(const z of cur.zones){ const pr=zoneProx(z); if(pr>zp){ zp=pr; zb=z; } }
-    const zz=zp*zp, artW=zb?zb.art:0, hetW=zb?zb.het:0;
-    A.shaper.curve=tanhCurve(1.4+(P.art/100)*zz*2.6*artW);
-    A.hetGain.gain.setTargetAtTime((P.het/1000)*hetW*zz*0.12,now,.02);
-    A.hetOsc.frequency.setTargetAtTime(420+(zb?zb.pos:0.5)*1600,now,.04);
+    A.lp.frequency.setTargetAtTime(1300+q*(P.lp*tone-1300),now,.02);
+    // Artefakte/Heterodyn an die Störung der nächsten Station gekoppelt (blenden mit)
+    const artW = sb? (sb.type==="static"?1.6:(sb.type==="tones"?0.3:0.4)) : 0;
+    const hetW = sb? (sb.type==="tones"?1.0:(sb.type==="websdr"?0.4:0.0)) : 0;
+    A.shaper.curve=tanhCurve(1.4+(P.art/100)*sf*2.6*artW);
+    A.hetGain.gain.setTargetAtTime((P.het/1000)*hetW*sf*0.12,now,.03);
+    A.hetOsc.frequency.setTargetAtTime(420+(sb?sb.pos:0.5)*1600,now,.05);
     if(frames++%5===0){ updateMeters(q,songLvl,noiseLvl,intfActive); setBest(q>0.8); }
   }
   requestAnimationFrame(frame);
@@ -274,7 +258,7 @@ function togglePlay(){
   if(playing){ A.ctx.resume(); startSong(); startZones(); setStatus("▶ läuft"); } else { A.ctx.suspend(); }
 }
 
-// ---- drag — Anschlag an den Enden ----
+// ---- drag ----
 function setMarkFromX(clientX){
   const r=lineEl.getBoundingClientRect();
   const screenPct=((clientX-r.left)/r.width)*100;
