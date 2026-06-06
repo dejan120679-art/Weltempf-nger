@@ -22,7 +22,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v60</span>
+      <span class="text-amber-400 text-xs">v61</span>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -116,6 +116,14 @@ const $=id=>document.getElementById(id);
 const lineEl=$("line"), curveEl=$("curve"), dotEl=$("dot"), ticksEl=$("ticks");
 function setStatus(t){ $("status").textContent=t; }
 function setMarkPct(p){ dotEl.style.left=p+"%"; }
+function applyBoost(){
+  if(!A.ctx) return;
+  const nr=P.nr/100, t=A.ctx.currentTime;
+  A.bDrive.curve=tanhCurve(1+nr*1.6);                 // mehr Drive -> präsenter/lauter
+  A.bComp.threshold.value=-12-nr*18; A.bComp.ratio.value=2+nr*4;
+  A.bMakeup.gain.setTargetAtTime(1+nr*1.0,t,.05);     // Make-up: Musik hebt an
+  A.bTame.gain.setTargetAtTime(-nr*4,t,.05);          // Schmerz-Cut 3.2 kHz gegen Kreischen
+}
 
 function ensure(){
   if(A.ctx) return A;
@@ -137,10 +145,16 @@ function ensure(){
   noiseSrc.connect(noiseFilt); noiseFilt.connect(noiseGain); noiseGain.connect(bus); noiseSrc.start();
   const songGain=ctx.createGain(); songGain.gain.value=0;
   songGain.channelCount=1; songGain.channelCountMode="explicit"; songGain.channelInterpretation="speakers";
-  songGain.connect(bus);
+  // Boost-Kette „Fragile lauter" NUR auf der Musik: tanh-Drive -> Kompressor -> Make-up -> Schmerz-Cut
+  const bDrive=ctx.createWaveShaper(); bDrive.curve=tanhCurve(1); bDrive.oversample="2x";
+  const bComp=ctx.createDynamicsCompressor(); bComp.threshold.value=-12; bComp.ratio.value=2; bComp.attack.value=.01; bComp.release.value=.18;
+  const bMakeup=ctx.createGain(); bMakeup.gain.value=1;
+  const bTame=ctx.createBiquadFilter(); bTame.type="peaking"; bTame.frequency.value=3200; bTame.Q.value=1.0; bTame.gain.value=0;
+  songGain.connect(bDrive); bDrive.connect(bComp); bComp.connect(bMakeup); bMakeup.connect(bTame); bTame.connect(bus);
   const hetOsc=ctx.createOscillator(); hetOsc.type="sine"; hetOsc.frequency.value=700;
   const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(bus); hetOsc.start();
-  Object.assign(A,{ctx,bus,hp,lp,pkf,shaper,agc,lim,out,noiseGain,noiseFilt,songGain,hetOsc,hetGain,songBuf:null,songSrc:null,bufs:{}});
+  Object.assign(A,{ctx,bus,hp,lp,pkf,shaper,agc,lim,out,noiseGain,noiseFilt,songGain,bDrive,bComp,bMakeup,bTame,hetOsc,hetGain,songBuf:null,songSrc:null,bufs:{}});
+  applyBoost();
   preloadZones(); startZones();
   return A;
 }
@@ -218,7 +232,7 @@ function newPreset(){
     for(const s of cur.stations){
       const inSt=bump((mark-s.pos)/s.cw), songEnv=bump((mark-s.pos)/s.pw);
       const fade=inSt*(1-songEnv);                 // hoch am Rand der Station, 0 in der Mitte
-      if(s.g){ const stF=0.4+0.6*fade01(T,s.fseed+9); const lvl=fade*stF*0.9*(1-nr*0.4); s.g.gain.setTargetAtTime(lvl,now,.05); if(lvl>im) im=lvl; }
+      if(s.g){ const stF=0.4+0.6*fade01(T,s.fseed+9); const lvl=fade*stF*0.9*(1-nr*0.8); s.g.gain.setTargetAtTime(lvl,now,.05); if(lvl>im) im=lvl; }
       if(fade>sf){ sf=fade; sb=s; }
     }
     intfActive=im;
@@ -227,7 +241,7 @@ function newPreset(){
     const duck=1-(P.duck/100)*intfActive*0.6;
     const vol = pk? (1-pe) + pe*pk.gain : 1;
     let songLvl=q*vol*songFade*breath.v*Math.max(0,duck);
-    songLvl*=(1+nr*(1-q)*1.6);                       // fragiles (schwaches) Signal anheben
+    songLvl*=(1+nr*1.4);                            // Musik direkt lauter (Regler-Boost)
     songLvl=Math.max(0.08, songLvl);                // Lied nie ganz weg
     A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.02);
     // AGC-Pumpen: wenn das Lied schwindet, schwillt das Rauschen — NR drückt es runter
