@@ -22,7 +22,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v59</span>
+      <span class="text-amber-400 text-xs">v60</span>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -100,7 +100,7 @@ function makeLandscape(){
 function qAt(t){ if(!cur) return 0; let e=0; for(const s of cur.stations){ e=Math.max(e, s.h*bump((t-s.pos)/s.pw)); } return Math.max(cur.floor,e); }
 
 // ---- feste Startwerte ----
-const P={sweet:22,noise:3,art:73,het:90,duck:70,lp:3785};
+const P={sweet:22,noise:3,art:73,het:90,duck:70,lp:3785,nr:0};
 
 const A={};
 let cur=null;
@@ -212,12 +212,13 @@ function newPreset(){
     // klarste Station bestimmt Lied (Lautstärke/Helligkeit je Station verschieden)
     let pk=null,pe=0; for(const s of cur.stations){ const e=s.h*bump((mark-s.pos)/s.pw); if(e>pe){ pe=e; pk=s; } }
     const q=Math.max(cur.floor,pe);
+    const nr=P.nr/100;                               // Signal-Rettung: schwaches Signal hoch, Störendes runter
     // Störung jeder Station: Einzug * (1 - Klarheit), zusätzlich eigener Schwund -> blendet mit dem Lied über
     let im=0, sb=null,sf=0;
     for(const s of cur.stations){
       const inSt=bump((mark-s.pos)/s.cw), songEnv=bump((mark-s.pos)/s.pw);
       const fade=inSt*(1-songEnv);                 // hoch am Rand der Station, 0 in der Mitte
-      if(s.g){ const stF=0.4+0.6*fade01(T,s.fseed+9); const lvl=fade*stF*0.9; s.g.gain.setTargetAtTime(lvl,now,.05); if(lvl>im) im=lvl; }
+      if(s.g){ const stF=0.4+0.6*fade01(T,s.fseed+9); const lvl=fade*stF*0.9*(1-nr*0.4); s.g.gain.setTargetAtTime(lvl,now,.05); if(lvl>im) im=lvl; }
       if(fade>sf){ sf=fade; sb=s; }
     }
     intfActive=im;
@@ -226,20 +227,21 @@ function newPreset(){
     const duck=1-(P.duck/100)*intfActive*0.6;
     const vol = pk? (1-pe) + pe*pk.gain : 1;
     let songLvl=q*vol*songFade*breath.v*Math.max(0,duck);
+    songLvl*=(1+nr*(1-q)*1.6);                       // fragiles (schwaches) Signal anheben
     songLvl=Math.max(0.08, songLvl);                // Lied nie ganz weg
     A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.02);
-    // AGC-Pumpen: wenn das Lied schwindet, schwillt das Rauschen
-    const noiseLvl=(P.noise/100)*(0.10+(1-q)*0.8)*(1+(1-songFade)*1.6);
+    // AGC-Pumpen: wenn das Lied schwindet, schwillt das Rauschen — NR drückt es runter
+    const noiseLvl=(P.noise/100)*(0.10+(1-q)*0.8)*(1+(1-songFade)*1.6)*(1-nr*0.85);
     A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.05);
     const tone = pk? pk.tone : 1;
     A.lp.frequency.setTargetAtTime(1300+q*(P.lp*tone-1300),now,.02);
-    // Verzerrung an der Stör-Flanke (Static am stärksten), blendet zur Mitte zurück
+    // Verzerrung an der Stör-Flanke (Static am stärksten), blendet zur Mitte zurück — NR reduziert
     const songEnvB = sb? bump((mark-sb.pos)/sb.pw):0;
     const artW = sb? (sb.type==="static"?1.6:(sb.type==="tones"?0.3:0.4)) : 0;
-    A.shaper.curve=tanhCurve(1.4+(P.art/100)*sf*(1-songEnvB)*2.6*artW);
-    // Heterodyn als Zero-Beat-Sweep: pfeift beim Zutunen herunter, fast 0 in der Mitte
+    A.shaper.curve=tanhCurve((1.4-nr*0.3)+(P.art/100)*sf*(1-songEnvB)*2.6*artW*(1-nr*0.8));
+    // Heterodyn als Zero-Beat-Sweep: pfeift beim Zutunen herunter, fast 0 in der Mitte — NR dämpft
     const hetW = sb? (sb.type==="tones"?1.0:(sb.type==="websdr"?0.45:0.18)) : 0;
-    A.hetGain.gain.setTargetAtTime((P.het/1000)*hetW*sf*(1-songEnvB)*0.12,now,.04);
+    A.hetGain.gain.setTargetAtTime((P.het/1000)*hetW*sf*(1-songEnvB)*0.12*(1-nr*0.85),now,.04);
     const dC = sb? Math.abs(mark-sb.pos)/sb.cw : 1;
     A.hetOsc.frequency.setTargetAtTime(40+dC*2600,now,.05);
     if(frames++%5===0){ updateMeters(q,songLvl,noiseLvl,intfActive); setBest(q>0.8); }
@@ -257,7 +259,7 @@ function newPreset(){
       for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2);
       const s=ctx.createBufferSource(); s.buffer=buf;
       const bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=900+Math.random()*2400; bp.Q.value=0.7;
-      const g=ctx.createGain(); g.gain.value=(P.noise/100)*(0.6+(1-q)*1.4)*(0.6+Math.random());
+      const g=ctx.createGain(); g.gain.value=(P.noise/100)*(0.6+(1-q)*1.4)*(0.6+Math.random())*(1-(P.nr/100)*0.85);
       s.connect(bp); bp.connect(g); g.connect(A.bus); s.start();
       s.onended=()=>{ try{g.disconnect();}catch(e){} };
     }
@@ -317,7 +319,8 @@ function setBest(b){ const e=$("m-best"); e.className="ml-2 px-2 py-0.5 rounded 
 // ---- sliders ----
 const sl=[
   ["sweet","Sweet-Spot-Breite (aus)",4,40],["noise","Rausch-Stärke",0,100],["art","Artefakte",0,100],
-  ["het","Heterodyn-Pfeifen",0,100],["duck","Störungs-Verdrängung",0,100],["lp","Empfänger-Dumpfheit (Hz)",1200,6000]
+  ["het","Heterodyn-Pfeifen",0,100],["duck","Störungs-Verdrängung",0,100],["lp","Empfänger-Dumpfheit (Hz)",1200,6000],
+  ["nr","Signal-Rettung (NR + Boost)",0,100]
 ];
 sl.forEach(([k,lab,mn,mx])=>{
   const row=document.createElement("div"); row.className="flex items-center gap-3 my-2";
