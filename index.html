@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v71</span>
+      <span class="text-amber-400 text-xs">v72</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -204,10 +204,10 @@ function applyControls(){
   if(!A.ctx) return; const t=A.ctx.currentTime, nr=isRescue(cur)?P.nr/100:0;
   // Rettung: aggressive Kompression auf dem geformten Empfangssignal, vor dem Raum
   A.rHP.frequency.setTargetAtTime(120+nr*300,t,.05);
-  A.rComp.threshold.setTargetAtTime(-10-nr*38,t,.05);
-  A.rComp.ratio.setTargetAtTime(1+nr*15,t,.05);
+  A.rComp.threshold.setTargetAtTime(-10-nr*44,t,.05);
+  A.rComp.ratio.setTargetAtTime(1+nr*17,t,.05);
   A.rComp.knee.setTargetAtTime(30*(1-nr),t,.05);
-  A.rMakeup.gain.setTargetAtTime(1+nr*2.2,t,.05);
+  A.rMakeup.gain.setTargetAtTime(1+nr*3.3,t,.05);
   A.rTame.gain.setTargetAtTime(-nr*3,t,.05);
   A.revWet.gain.setTargetAtTime((P.reverb/100)*0.9,t,.06);
   A.delWet.gain.setTargetAtTime((P.delay/100)*0.6,t,.06);
@@ -241,6 +241,8 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
 (function frame(ts){
   if(A.ctx && playing && cur){
     const now=A.ctx.currentTime, T=now, nr=isRescue(cur)?P.nr/100:0;
+    const cr=P.crush/100;                                 // Verzerrung hoch -> Fokus aufs Lied: Stör/Rausch reziprok runter
+    const focus=Math.max(nr, nr*0.5+cr*0.5);              // gemeinsamer Absenk-Faktor (tastet sich an)
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.92+Math.random()*0.10; }
     const m=parseInt(cur.band)||25, nf=Math.max(-1,Math.min(1,(m-31)/18));
     let prop=night?(1+nf*0.45):(1-nf*0.45); prop=Math.max(0.3,Math.min(1.4,prop));
@@ -248,11 +250,11 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const fade=(1-effDepth)+effDepth*fade01(T,cur.seed);
     const q=Math.min(1,cur.q0*prop)*fade;
     let fgLvl=0;
-    if(A.fg){ const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55); fgLvl=cur.foreign? gate*(P.fgLevel/100)*0.9*Math.pow(1-nr*0.97,1.6):0; A.fg.gain.setTargetAtTime(fgLvl,now,.08); }
+    if(A.fg){ const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55); fgLvl=cur.foreign? gate*(P.fgLevel/100)*0.9*Math.pow(1-focus*0.97,1.6):0; A.fg.gain.setTargetAtTime(fgLvl,now,.08); }
     intfActive=fgLvl;
     let songLvl=q*cur.gain*breath.v; songLvl=Math.max(0.04,songLvl);
     A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.03);
-    const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*Math.pow(1-nr*0.95,1.6);
+    const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*Math.pow(1-focus*0.95,1.6);
     A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.06);
     const lpc=Math.max(700,Math.min(6000, cur.lp*(P.lp/3785)));
     A.lp.frequency.setTargetAtTime(900+q*(lpc-900),now,.04);
@@ -317,7 +319,7 @@ const sl=[
   "RAUM",
   ["reverb","Hall",0,100,"Räumlicher Nachhall — verklebt das verletzte Signal, erzeugt Distanz."],
   ["delay","Echo",0,100,"Verzögerte Wiederholungen mit Rückkopplung."],
-  ["wow","Leiern",0,100,"Tonhöhen-Schwanken wie bei Tonband/altem Empfänger."],
+  ["wow","Wow",0,100,"Tonhöhen-Schwanken wie bei Tonband/altem Empfänger."],
   "AUSGANG",
   ["vol","Lautstärke",0,100,"Ausgangspegel."]
 ];
