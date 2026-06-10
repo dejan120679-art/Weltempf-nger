@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v72</span>
+      <span class="text-amber-400 text-xs">v73</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -119,7 +119,7 @@ let masterOn=true, srcOrig=false, presetView=false;
 const ctlMap={};
 const A={};
 let idx=0, cur=PRESETS[0];
-let intfActive=0, playing=false, frames=0, night=false;
+let intfActive=0, playing=false, frames=0, night=false, curNr=0;
 const breath={t:0,v:1};
 
 const $=id=>document.getElementById(id);
@@ -138,7 +138,7 @@ function ensure(){
   const pkf=ctx.createBiquadFilter(); pkf.type="peaking"; pkf.frequency.value=1700; pkf.Q.value=1.1; pkf.gain.value=4.5;
   const shaper=ctx.createWaveShaper(); shaper.curve=tanhCurve(1.4); shaper.oversample="2x";
   const crush=ctx.createScriptProcessor(1024,1,1); let cph=0,clast=0;
-  crush.onaudioprocess=e=>{ const ip=e.inputBuffer.getChannelData(0), op=e.outputBuffer.getChannelData(0), amt=P.crush/100;
+  crush.onaudioprocess=e=>{ const ip=e.inputBuffer.getChannelData(0), op=e.outputBuffer.getChannelData(0), amt=(P.crush/100)*(1-curNr);
     if(amt<=0.001){ op.set(ip); return; }
     const step=1+Math.floor(amt*12), levels=Math.pow(2,Math.max(2,12-amt*9));
     for(let i=0;i<ip.length;i++){ if(cph%step===0) clast=Math.round(ip[i]*levels)/levels; cph++; op[i]=clast; } };
@@ -241,8 +241,11 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
 (function frame(ts){
   if(A.ctx && playing && cur){
     const now=A.ctx.currentTime, T=now, nr=isRescue(cur)?P.nr/100:0;
-    const cr=P.crush/100;                                 // Verzerrung hoch -> Fokus aufs Lied: Stör/Rausch reziprok runter
-    const focus=Math.max(nr, nr*0.5+cr*0.5);              // gemeinsamer Absenk-Faktor (tastet sich an)
+    curNr=nr;
+    const cr=P.crush/100;
+    const clean=Math.pow(1-nr,0.7);                       // Rettung isoliert: am Anschlag bleibt nur die Musik
+    const crushDuck=Math.pow(1-cr*0.7,1.2);               // Verzerrung schiebt Stör/Rausch reziprok runter
+    const duckF=clean*crushDuck;                          // gemeinsamer Absenk-Faktor
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.92+Math.random()*0.10; }
     const m=parseInt(cur.band)||25, nf=Math.max(-1,Math.min(1,(m-31)/18));
     let prop=night?(1+nf*0.45):(1-nf*0.45); prop=Math.max(0.3,Math.min(1.4,prop));
@@ -250,16 +253,16 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const fade=(1-effDepth)+effDepth*fade01(T,cur.seed);
     const q=Math.min(1,cur.q0*prop)*fade;
     let fgLvl=0;
-    if(A.fg){ const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55); fgLvl=cur.foreign? gate*(P.fgLevel/100)*0.9*Math.pow(1-focus*0.97,1.6):0; A.fg.gain.setTargetAtTime(fgLvl,now,.08); }
+    if(A.fg){ const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55); fgLvl=cur.foreign? gate*(P.fgLevel/100)*0.9*duckF:0; A.fg.gain.setTargetAtTime(fgLvl,now,.08); }
     intfActive=fgLvl;
     let songLvl=q*cur.gain*breath.v; songLvl=Math.max(0.04,songLvl);
     A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.03);
-    const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*Math.pow(1-focus*0.95,1.6);
+    const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*duckF;
     A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.06);
     const lpc=Math.max(700,Math.min(6000, cur.lp*(P.lp/3785)));
     A.lp.frequency.setTargetAtTime(900+q*(lpc-900),now,.04);
-    A.shaper.curve=tanhCurve(1.4+cur.art*(0.6+(1-fade)*0.8)*1.2);
-    A.hetGain.gain.setTargetAtTime((P.het/1000)*cur.het*(0.5+(1-fade))*0.5*(1-nr*0.85),now,.05);
+    A.shaper.curve=tanhCurve(1.4+cur.art*(0.6+(1-fade)*0.8)*1.2*clean);
+    A.hetGain.gain.setTargetAtTime((P.het/1000)*cur.het*(0.5+(1-fade))*0.5*clean,now,.05);
     A.hetOsc.frequency.setTargetAtTime(500+cur.q0*1400,now,.1);
     if(frames++%6===0){ updateMeters(q,songLvl,noiseLvl,fgLvl); updateSNR(q); }
   }
