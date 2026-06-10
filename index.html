@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v81</span>
+      <span class="text-amber-400 text-xs">v83</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -68,6 +68,7 @@
         </div>
         <div class="mt-2 h-2 bg-black/60 border border-slate-800 rounded overflow-hidden"><div id="sigbar" class="h-full" style="width:0%;background:#46e07d"></div></div>
         <div class="text-slate-500 text-[11px] mt-2 disp">CHARAKTER · Rauschen <span id="cnoise" class="text-slate-300"></span> · Artefakt <span id="cart" class="text-slate-300"></span> · Pfeifen <span id="chet" class="text-slate-300"></span></div>
+        <div class="text-slate-400 text-xs mt-1 truncate">TITEL <span id="ptitle" class="text-slate-200">—</span></div>
       </div>
       <div id="meters" class="mt-3"></div>
     </div>
@@ -113,6 +114,59 @@ function tanhCurve(k){ const n=1024,c=new Float32Array(n); for(let i=0;i<n;i++){
 function fade01(t,seed){ const v=0.5+0.5*(0.6*Math.sin(t*0.20+seed)+0.4*Math.sin(t*0.082+seed*1.7+1.3)); return v<0?0:(v>1?1:v); }
 function makeIR(ctx,sec,decay){ const r=ctx.sampleRate,len=Math.max(1,sec*r|0),b=ctx.createBuffer(1,len,r),d=b.getChannelData(0); for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay); return b; }
 function dots(n){ n=Math.max(0,Math.min(3,Math.round(n))); return "●●●".slice(0,n)+"○○○".slice(0,3-n); }
+function crushCurve(amt){ const n=2048,c=new Float32Array(n); if(amt<=0.001){ for(let i=0;i<n;i++) c[i]=(i/(n-1))*2-1; return c; } const levels=Math.max(2,Math.round(2+(1-amt)*30)); for(let i=0;i<n;i++){ const x=(i/(n-1))*2-1; c[i]=Math.round(x*levels)/levels; } return c; }
+function setTitle(t){ const e=document.getElementById("ptitle"); if(e) e.textContent=(t&&t.trim())?t.trim():"—"; }
+function readID3(buf){
+  try{
+    const dv=new DataView(buf);
+    if(dv.getUint8(0)!==0x49||dv.getUint8(1)!==0x44||dv.getUint8(2)!==0x33) return null; // "ID3"
+    const size=(dv.getUint8(6)<<21)|(dv.getUint8(7)<<14)|(dv.getUint8(8)<<7)|dv.getUint8(9);
+    let pos=10, end=size+10, title=null, artist=null;
+    while(pos<end-10){
+      const id=String.fromCharCode(dv.getUint8(pos),dv.getUint8(pos+1),dv.getUint8(pos+2),dv.getUint8(pos+3));
+      if(!/^[A-Z0-9]{4}$/.test(id)) break;
+      const fsize=(dv.getUint8(pos+4)<<24)|(dv.getUint8(pos+5)<<16)|(dv.getUint8(pos+6)<<8)|dv.getUint8(pos+7);
+      const dstart=pos+10;
+      if((id==="TIT2"||id==="TPE1")&&fsize>1){
+        const enc=dv.getUint8(dstart), bytes=new Uint8Array(buf,dstart+1,fsize-1);
+        let txt;
+        if(enc===1||enc===2) txt=new TextDecoder("utf-16").decode(bytes);
+        else if(enc===3) txt=new TextDecoder("utf-8").decode(bytes);
+        else txt=new TextDecoder("iso-8859-1").decode(bytes);
+        txt=txt.replace(/\u0000+$/,"").trim();
+        if(id==="TIT2") title=txt; else artist=txt;
+      }
+      if(fsize<=0) break;
+      pos=dstart+fsize;
+    }
+    const out=[artist,title].filter(Boolean).join(" – ");
+    return out||null;
+  }catch(e){ return null; }
+}
+let icyAbort=null;
+function stopIcy(){ if(icyAbort){ try{icyAbort.abort();}catch(e){} icyAbort=null; } }
+async function startIcy(url){
+  stopIcy();
+  const ctrl=new AbortController(); icyAbort=ctrl;
+  try{
+    const res=await fetch(url,{headers:{"Icy-MetaData":"1"},signal:ctrl.signal});
+    const mi=parseInt(res.headers.get("icy-metaint")||"0");
+    if(!mi||!res.body) return;
+    const reader=res.body.getReader();
+    let phase="audio", left=mi, metaLeft=0, metaChunks=[];
+    while(!ctrl.signal.aborted){
+      const {done,value}=await reader.read(); if(done) break;
+      let i=0;
+      while(i<value.length){
+        if(phase==="audio"){ const t=Math.min(left,value.length-i); i+=t; left-=t; if(left===0) phase="len"; }
+        else if(phase==="len"){ metaLeft=value[i]*16; i++; metaChunks=[]; if(metaLeft===0){ phase="audio"; left=mi; } else phase="meta"; }
+        else { const t=Math.min(metaLeft,value.length-i); metaChunks.push(value.slice(i,i+t)); i+=t; metaLeft-=t;
+          if(metaLeft===0){ let len=0; metaChunks.forEach(a=>len+=a.length); const m=new Uint8Array(len); let o=0; metaChunks.forEach(a=>{m.set(a,o);o+=a.length;});
+            const s=new TextDecoder("utf-8").decode(m), mm=s.match(/StreamTitle='([^']*)'/); if(mm) setTitle(mm[1]); phase="audio"; left=mi; } }
+      }
+    }
+  }catch(e){}
+}
 
 const P={noise:30,fgLevel:55,breathe:50,lp:3785,crush:0,het:60,nr:0,reverb:0,delay:0,wow:0,vol:85,drywet:100};
 let masterOn=true;
@@ -136,11 +190,8 @@ function ensure(){
   const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=P.lp;
   const pkf=ctx.createBiquadFilter(); pkf.type="peaking"; pkf.frequency.value=1700; pkf.Q.value=1.1; pkf.gain.value=4.5;
   const shaper=ctx.createWaveShaper(); shaper.curve=tanhCurve(1.4); shaper.oversample="2x";
-  const crush=ctx.createScriptProcessor(1024,1,1); let cph=0,clast=0;
-  crush.onaudioprocess=e=>{ const ip=e.inputBuffer.getChannelData(0), op=e.outputBuffer.getChannelData(0), amt=(P.crush/100)*(1-curNr);
-    if(amt<=0.001){ op.set(ip); return; }
-    const step=1+Math.floor(amt*12), levels=Math.pow(2,Math.max(2,12-amt*9));
-    for(let i=0;i<ip.length;i++){ if(cph%step===0) clast=Math.round(ip[i]*levels)/levels; cph++; op[i]=clast; } };
+  const crushShaper=ctx.createWaveShaper(); crushShaper.curve=crushCurve(0); crushShaper.oversample="2x";
+  const crushWet=ctx.createGain(); crushWet.gain.value=1; const crushDry=ctx.createGain(); crushDry.gain.value=0;
   const agc=ctx.createDynamicsCompressor(); agc.threshold.value=-28; agc.ratio.value=4; agc.attack.value=.05; agc.release.value=.4;
   // RETTUNG-Stufe (am Ende der Empfänger-Kette, VOR dem Raum)
   const rHP=ctx.createBiquadFilter(); rHP.type="highpass"; rHP.frequency.value=120; rHP.Q.value=0.7;
@@ -169,10 +220,13 @@ function ensure(){
   // A/B: Empfangskette vs. Originallied (sauber, an der Kette vorbei)
   const chainGate=ctx.createGain(); chainGate.gain.value=1;
   const origGate=ctx.createGain(); origGate.gain.value=0;
-  const origRaw=ctx.createGain(); origRaw.gain.value=1; origRaw.connect(origGate);
+  const origRaw=ctx.createGain(); origRaw.gain.value=1;
+  const dryDelay=ctx.createDelay(0.2); dryDelay.delayTime.value=0.012; origRaw.connect(dryDelay); dryDelay.connect(origGate);
   const out=ctx.createGain(); out.gain.value=P.vol/100;
   // Verkabelung Empfänger
-  bus.connect(wow); wow.connect(hp); hp.connect(lp); lp.connect(pkf); pkf.connect(shaper); shaper.connect(crush); crush.connect(agc);
+  bus.connect(wow); wow.connect(hp); hp.connect(lp); lp.connect(pkf); pkf.connect(shaper);
+  shaper.connect(crushShaper); crushShaper.connect(crushWet); crushWet.connect(agc);
+  shaper.connect(crushDry); crushDry.connect(agc);
   agc.connect(rHP); rHP.connect(rComp); rComp.connect(rMakeup); rMakeup.connect(rTame); rTame.connect(lim);
   lim.connect(mix);
   lim.connect(conv); conv.connect(revWet); revWet.connect(mix);
@@ -197,7 +251,7 @@ function ensure(){
   songGain.connect(bus);
   const hetOsc=ctx.createOscillator(); hetOsc.type="sine"; hetOsc.frequency.value=700;
   const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(bus); hetOsc.start();
-  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crush,agc,rHP,rComp,rMakeup,rTame,lim,mix,conv,revWet,del,delWet,safeBell,mHP,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,out,noiseGain,noiseFilt,songGain,hetOsc,hetGain,fg:null,fgSrc:null,songBuf:null,songSrc:null,bufs:{}});
+  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,lim,mix,conv,revWet,del,delWet,safeBell,mHP,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,out,noiseGain,noiseFilt,songGain,hetOsc,hetGain,fg:null,fgSrc:null,songBuf:null,songSrc:null,bufs:{}});
   applyControls(); startForeign();
   return A;
 }
@@ -214,6 +268,7 @@ function applyControls(){
   A.revWet.gain.setTargetAtTime((P.reverb/100)*0.9,t,.06);
   A.delWet.gain.setTargetAtTime((P.delay/100)*0.6,t,.06);
   A.wowDepth.gain.setTargetAtTime((P.wow/100)*0.0035,t,.06);
+  A.crushShaper.curve=crushCurve(P.crush/100);
   const w=P.drywet/100;                                  // Dry=Original, Wet=bearbeiteter Empfang
   A.chainGate.gain.setTargetAtTime(Math.sin(w*Math.PI/2),t,.03);
   A.origGate.gain.setTargetAtTime(Math.cos(w*Math.PI/2),t,.03);
@@ -251,6 +306,7 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const clean=1-nr;                                     // linearer Verlauf über den ganzen Regler
     const crushDuck=Math.pow(1-cr*0.7,1.2);               // Verzerrung schiebt Stör/Rausch reziprok runter
     const duckF=clean*crushDuck; curDuck=duckF;            // gemeinsamer Absenk-Faktor
+    A.crushWet.gain.setTargetAtTime(1-nr,now,.05); A.crushDry.gain.setTargetAtTime(nr,now,.05); // bei Rettung-Anschlag kein Crush
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.92+Math.random()*0.10; }
     const m=parseInt(cur.band)||25, nf=Math.max(-1,Math.min(1,(m-31)/18));
     let prop=night?(1+nf*0.45):(1-nf*0.45); prop=Math.max(0.3,Math.min(1.4,prop));
@@ -297,15 +353,15 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
 })();
 
 function startSong(){ if(!A.songBuf||A.songSrc) return; const s=A.ctx.createBufferSource(); s.buffer=A.songBuf; s.loop=true; s.connect(A.songGain); s.connect(A.origRaw); try{s.start(0,0);}catch(e){} A.songSrc=s; }
-function loadSong(file){ ensure(); streamMode=false; if(A.streamEl) A.streamEl.pause(); setStatus("lade…"); file.arrayBuffer().then(b=>A.ctx.decodeAudioData(b)).then(buf=>{ A.songBuf=buf; setStatus("Lied: "+file.name.slice(0,28)); if(playing){ try{A.songSrc&&A.songSrc.stop();}catch(e){} A.songSrc=null; startSong(); } }).catch(()=>setStatus("⚠ Datei-Fehler")); }
+function loadSong(file){ ensure(); streamMode=false; stopIcy(); if(A.streamEl) A.streamEl.pause(); setStatus("lade…"); file.arrayBuffer().then(b=>{ const t=readID3(b)||file.name.replace(/\.[^.]+$/,""); A.ctx.decodeAudioData(b.slice(0)).then(buf=>{ A.songBuf=buf; setStatus("Lied: "+file.name.slice(0,28)); setTitle(t); if(playing){ try{A.songSrc&&A.songSrc.stop();}catch(e){} A.songSrc=null; startSong(); } }).catch(()=>setStatus("⚠ Datei-Fehler")); }).catch(()=>setStatus("⚠ Datei-Fehler")); }
 function loadStream(url){
   if(!url) return;
   ensure(); A.ctx.resume();
   if(!A.streamEl){ A.streamEl=new Audio(); A.streamEl.crossOrigin="anonymous"; A.streamSrc=A.ctx.createMediaElementSource(A.streamEl); A.streamSrc.connect(A.songGain); A.streamSrc.connect(A.origRaw); A.streamEl.onerror=()=>setStatus("⚠ Stream-Fehler (URL oder CORS)"); }
   if(A.songSrc){ try{A.songSrc.stop();}catch(e){} A.songSrc=null; }
-  streamMode=true;
+  streamMode=true; setTitle("—");
   A.streamEl.src=url; setStatus("Stream verbinden…");
-  A.streamEl.play().then(()=>{ playing=true; $("play").textContent="⏸ PAUSE"; startForeign(); setStatus("▶ Stream läuft (wenn stumm = CORS)"); }).catch(()=>setStatus("⚠ Stream blockiert (CORS/URL/HTTP)"));
+  A.streamEl.play().then(()=>{ playing=true; $("play").textContent="⏸ PAUSE"; startForeign(); setStatus("▶ Stream läuft (wenn stumm = CORS)"); startIcy(url); }).catch(()=>setStatus("⚠ Stream blockiert (CORS/URL/HTTP)"));
 }
 function togglePlay(){ ensure(); playing=!playing; $("play").textContent=playing?"⏸ PAUSE":"▶ PLAY"; if(playing){ A.ctx.resume(); if(streamMode){ A.streamEl&&A.streamEl.play().catch(()=>{}); } else { startSong(); } startForeign(); setStatus("▶ läuft"); } else { A.ctx.suspend(); if(streamMode&&A.streamEl) A.streamEl.pause(); } }
 
