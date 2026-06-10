@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v75</span>
+      <span class="text-amber-400 text-xs">v77</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -255,12 +255,14 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     let fgLvl=0;
     if(A.fg){ const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55); fgLvl=cur.foreign? gate*(P.fgLevel/100)*0.9*duckF:0; A.fg.gain.setTargetAtTime(fgLvl,now,.08); }
     intfActive=fgLvl;
-    let songLvl=q*cur.gain*breath.v;
-    // echte Lücken: langsame Hüllkurve geht im Rettungs-Modus zeitweise ganz auf Stille (stärker je höher Rettung)
-    const w=fade01(T,cur.seed+2.0), thr=nr*0.55;
-    const gap = w<thr ? 0 : Math.min(1,(w-thr)/0.15);
-    songLvl*=gap;
-    A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.03);
+    let songLvl=q*cur.gain*breath.v; songLvl=Math.max(0.04,songLvl);
+    // an Verzerrung & Co. gekoppelt: hoher Drive -> Lied wird leise & flattert, manchmal kurz weg (kein festes Pausenmuster)
+    const drive=Math.min(1, cr*0.8 + (P.noise/100)*0.3 + (P.fgLevel/100)*0.15);
+    const f1=0.5+0.5*Math.sin(T*8.3+cur.seed), f2=0.5+0.5*Math.sin(T*14.1+cur.seed*1.7);
+    const wob=Math.pow(f1*0.55+f2*0.45, 1+drive*1.8);
+    const flut=1-drive*(1-wob);
+    songLvl*=(1-drive*0.35)*flut;
+    A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.008);
     const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*duckF;
     A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.06);
     const lpc=Math.max(700,Math.min(6000, cur.lp*(P.lp/3785)));
