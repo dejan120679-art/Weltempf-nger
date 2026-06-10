@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v65</span>
+      <span class="text-amber-400 text-xs">v66</span>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -39,6 +39,9 @@
 
     <!-- Digitales Stations-Display -->
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
+      <div class="flex justify-end mb-2">
+        <button id="daynight" class="px-2 py-1 text-xs rounded border border-amber-400 text-amber-300">☀ TAG</button>
+      </div>
       <div class="flex items-center justify-between mb-3">
         <button id="prev" class="px-3 py-2 rounded border border-slate-700 hover:border-emerald-400 hover:text-emerald-400">◄</button>
         <div class="text-center">
@@ -53,7 +56,7 @@
           <div class="text-right text-xs text-slate-400 disp">BAND <span id="pband" class="text-slate-200">--</span> · <span id="pmode" class="text-slate-200">AM</span></div>
         </div>
         <div class="flex items-center justify-between mt-2 text-xs">
-          <div class="text-slate-400">DISTANZ <span id="pdist" class="text-slate-200">—</span> · INHALT <span id="pcontent" class="text-slate-200">—</span></div>
+          <div class="text-slate-400">DISTANZ <span id="pdist" class="text-slate-200">—</span> · <span id="pkm" class="text-slate-200">—</span> km</div>
           <div class="text-slate-400">SIGNAL <span id="snr" class="text-emerald-400">—</span></div>
         </div>
         <div class="mt-2 h-2 bg-black/60 border border-slate-800 rounded overflow-hidden"><div id="sigbar" class="h-full" style="width:0%;background:#46e07d"></div></div>
@@ -89,16 +92,16 @@ const CONTENTLBL={voices:"Stimmen",numbers:"Zahlen",tones:"Töne/Morse",static:"
 // noise=Rauschanteil, art=Verzerrung, het=Pfeifen, foreign=Fremdaudio-Typ|null,
 // fadeDepth=wie stark es atmet (0..~0.9), seed/snIdx=fest/wiederholbar.
 const PRESETS=[
-  {id:"STN-01",freq:6075, band:"49 m",dist:"NAH · KLAR",     q0:0.95,lp:3800,gain:1.00,noise:0.5,art:0.05,het:0.0,foreign:"voices", fadeDepth:0.22,seed:0.4,snIdx:2},
-  {id:"STN-02",freq:7245, band:"41 m",dist:"MITTEL",         q0:0.80,lp:3200,gain:0.92,noise:0.8,art:0.40,het:0.1,foreign:"numbers",fadeDepth:0.40,seed:1.5,snIdx:1},
-  {id:"STN-03",freq:9420, band:"31 m",dist:"KLAR · RUHIG",   q0:0.90,lp:3600,gain:0.95,noise:0.5,art:0.10,het:0.0,foreign:null,     fadeDepth:0.45,seed:2.6,snIdx:0},
-  {id:"STN-04",freq:11750,band:"25 m",dist:"FERN · SCHWACH", q0:0.50,lp:2200,gain:0.72,noise:1.4,art:0.70,het:0.0,foreign:"static", fadeDepth:0.70,seed:3.7,snIdx:3},
-  {id:"STN-05",freq:13710,band:"22 m",dist:"MITTEL · PFEIFT",q0:0.70,lp:2800,gain:0.85,noise:0.9,art:0.45,het:1.0,foreign:"tones",  fadeDepth:0.50,seed:4.8,snIdx:4},
-  {id:"STN-06",freq:15580,band:"19 m",dist:"FERN · FRAGIL",  q0:0.45,lp:2000,gain:0.66,noise:1.5,art:0.30,het:0.2,foreign:"voices", fadeDepth:0.82,seed:5.9,snIdx:6},
-  {id:"STN-07",freq:17790,band:"16 m",dist:"NAH · WEIT",     q0:0.85,lp:3400,gain:0.95,noise:0.7,art:0.20,het:0.3,foreign:"websdr", fadeDepth:0.35,seed:6.1,snIdx:1},
-  {id:"STN-08",freq:21500,band:"13 m",dist:"SEHR FERN",      q0:0.34,lp:1700,gain:0.55,noise:1.8,art:0.40,het:0.2,foreign:"voices", fadeDepth:0.86,seed:7.2,snIdx:9},
-  {id:"STN-09",freq:5950, band:"49 m",dist:"KLAR · STARK",   q0:0.93,lp:3700,gain:1.00,noise:0.4,art:0.05,het:0.0,foreign:null,     fadeDepth:0.28,seed:8.3,snIdx:0},
-  {id:"STN-10",freq:9650, band:"31 m",dist:"MITTEL · FERN",  q0:0.60,lp:2600,gain:0.78,noise:1.2,art:0.45,het:0.6,foreign:"numbers",fadeDepth:0.60,seed:9.4,snIdx:2}
+  {id:"STN-01",freq:6075, band:"49 m",dist:"nah",      km:450,  q0:0.95,lp:3800,gain:1.00,noise:0.5,art:0.05,het:0.0,foreign:"voices", fadeDepth:0.22,seed:0.4,snIdx:2},
+  {id:"STN-02",freq:7245, band:"41 m",dist:"mittel",   km:1800, q0:0.80,lp:3200,gain:0.92,noise:0.8,art:0.40,het:0.1,foreign:"numbers",fadeDepth:0.40,seed:1.5,snIdx:1},
+  {id:"STN-03",freq:9420, band:"31 m",dist:"nah",      km:700,  q0:0.90,lp:3600,gain:0.95,noise:0.5,art:0.10,het:0.0,foreign:null,     fadeDepth:0.45,seed:2.6,snIdx:0},
+  {id:"STN-04",freq:11750,band:"25 m",dist:"fern",     km:6200, q0:0.50,lp:2200,gain:0.72,noise:1.4,art:0.70,het:0.0,foreign:"static", fadeDepth:0.70,seed:3.7,snIdx:3},
+  {id:"STN-05",freq:13710,band:"22 m",dist:"mittel",   km:2600, q0:0.70,lp:2800,gain:0.85,noise:0.9,art:0.45,het:1.0,foreign:"tones",  fadeDepth:0.50,seed:4.8,snIdx:4},
+  {id:"STN-06",freq:15580,band:"19 m",dist:"fern",     km:7400, q0:0.45,lp:2000,gain:0.66,noise:1.5,art:0.30,het:0.2,foreign:"voices", fadeDepth:0.82,seed:5.9,snIdx:6},
+  {id:"STN-07",freq:17790,band:"16 m",dist:"nah",      km:950,  q0:0.85,lp:3400,gain:0.95,noise:0.7,art:0.20,het:0.3,foreign:"websdr", fadeDepth:0.35,seed:6.1,snIdx:1},
+  {id:"STN-08",freq:21500,band:"13 m",dist:"sehr fern",km:12800,q0:0.34,lp:1700,gain:0.55,noise:1.8,art:0.40,het:0.2,foreign:"voices", fadeDepth:0.86,seed:7.2,snIdx:9},
+  {id:"STN-09",freq:5950, band:"49 m",dist:"nah",      km:300,  q0:0.93,lp:3700,gain:1.00,noise:0.4,art:0.05,het:0.0,foreign:null,     fadeDepth:0.28,seed:8.3,snIdx:0},
+  {id:"STN-10",freq:9650, band:"31 m",dist:"fern",     km:4100, q0:0.60,lp:2600,gain:0.78,noise:1.2,art:0.45,het:0.6,foreign:"numbers",fadeDepth:0.60,seed:9.4,snIdx:2}
 ];
 function presetSnippet(p){ const pool=POOL[p.foreign]; return (pool&&pool.length)? pool[p.snIdx%pool.length] : null; }
 
@@ -113,6 +116,7 @@ let cur=PRESETS[0];
 let intfActive=0;
 let playing=false;
 let frames=0;
+let night=false;
 const breath={t:0,v:1};
 
 const $=id=>document.getElementById(id);
@@ -143,13 +147,10 @@ function ensure(){
   const bMakeup=ctx.createGain(); bMakeup.gain.value=1;
   const bTame=ctx.createBiquadFilter(); bTame.type="peaking"; bTame.frequency.value=3200; bTame.Q.value=1.0; bTame.gain.value=0;
   songGain.connect(bComp); bComp.connect(bMakeup); bMakeup.connect(bTame); bTame.connect(bus);
-  // Glue: Hall + Delay auf der Musik
-  const glueIn=ctx.createGain(); bTame.connect(glueIn);
-  const conv=ctx.createConvolver(); conv.buffer=makeIR(ctx,2.2,2.5);
-  const dly=ctx.createDelay(1.0); dly.delayTime.value=0.22;
-  const fb=ctx.createGain(); fb.gain.value=0.34; dly.connect(fb); fb.connect(dly);
-  glueIn.connect(conv); glueIn.connect(dly);
-  const glueWet=ctx.createGain(); glueWet.gain.value=0; conv.connect(glueWet); dly.connect(glueWet); glueWet.connect(bus);
+  // Reverb (Hall) auf der Musik
+  const conv=ctx.createConvolver(); conv.buffer=makeIR(ctx,2.6,2.8);
+  bTame.connect(conv);
+  const glueWet=ctx.createGain(); glueWet.gain.value=0; conv.connect(glueWet); glueWet.connect(bus);
   const hetOsc=ctx.createOscillator(); hetOsc.type="sine"; hetOsc.frequency.value=700;
   const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(bus); hetOsc.start();
   Object.assign(A,{ctx,bus,hp,lp,pkf,shaper,agc,lim,out,noiseGain,noiseFilt,songGain,bComp,bMakeup,bTame,glueWet,hetOsc,hetGain,fg:null,fgSrc:null,songBuf:null,songSrc:null,bufs:{}});
@@ -195,7 +196,7 @@ function renderReadout(){
   $("pfreq").textContent=cur.freq;
   $("pband").textContent=cur.band;
   $("pdist").textContent=cur.dist;
-  $("pcontent").textContent=cur.foreign? CONTENTLBL[cur.foreign] : "rein";
+  $("pkm").textContent=cur.km;
 }
 function updateSNR(q){
   $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" · "+Math.round(5+q*32)+" dB";
@@ -207,8 +208,11 @@ function updateSNR(q){
   if(A.ctx && playing && cur){
     const now=A.ctx.currentTime, T=now, nr=P.nr/100;
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.92+Math.random()*0.10; }
+    // Tag/Nacht-Ausbreitung: tiefe Bänder nachts besser, hohe tags (echte SW-Physik)
+    const m=parseInt(cur.band)||25, nf=Math.max(-1,Math.min(1,(m-31)/18));
+    let prop=night?(1+nf*0.45):(1-nf*0.45); prop=Math.max(0.3,Math.min(1.4,prop));
     const fade=(1-cur.fadeDepth)+cur.fadeDepth*fade01(T,cur.seed);   // Atmen (QSB)
-    const q=cur.q0*fade;
+    const q=Math.min(1,cur.q0*prop)*fade;
     // Fremdaudio kommt & geht (sparsam)
     let fgLvl=0;
     if(A.fg){
@@ -217,18 +221,18 @@ function updateSNR(q){
       A.fg.gain.setTargetAtTime(fgLvl,now,.08);
     }
     intfActive=fgLvl;
-    const duck=1-(P.duck/100)*fgLvl*0.6;
-    let songLvl=q*cur.gain*breath.v*Math.max(0,duck);
+    const duck=Math.max(0.2,1-(P.duck/100)*fgLvl*1.4);              // Störungs-Verdrängung (kräftiger)
+    let songLvl=q*cur.gain*breath.v*duck;
     songLvl=Math.max(0.04,songLvl);                  // kann fast verschwinden, kommt zurück
     A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.03);
-    const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1-nr*0.85);
+    const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*(1-nr*0.85);
     A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.06);
-    const lpc=Math.min(P.lp,cur.lp);
-    A.lp.frequency.setTargetAtTime(1100+q*(lpc-1100),now,.04);
-    // Artefakte kommen & gehen mit dem Atmen, reziprok zum Boost
+    const lpc=Math.max(700,Math.min(6000, cur.lp*(P.lp/3785)));     // Dumpfheit global skaliert -> hörbar auf allen
+    A.lp.frequency.setTargetAtTime(900+q*(lpc-900),now,.04);
+    // Artefakte kommen & gehen mit dem Atmen, reziprok zum Boost — kräftiger
     const aw=cur.art*(0.5+(1-fade)*0.9);
-    A.shaper.curve=tanhCurve(1.4+(P.art/100)*aw*(1-nr*0.7));
-    A.hetGain.gain.setTargetAtTime((P.het/1000)*cur.het*(0.4+(1-fade))*0.10*(1-nr*0.85),now,.05);
+    A.shaper.curve=tanhCurve(1.4+(P.art/100)*(0.25+aw)*3.5*(1-nr*0.7));
+    A.hetGain.gain.setTargetAtTime((P.het/1000)*cur.het*(0.5+(1-fade))*0.5*(1-nr*0.85),now,.05);
     A.hetOsc.frequency.setTargetAtTime(500+cur.q0*1400,now,.1);
     if(frames++%6===0){ updateMeters(q,songLvl,noiseLvl,fgLvl); setBest(q>0.75); updateSNR(q); }
   }
@@ -254,8 +258,7 @@ function updateSNR(q){
 
 function startSong(){
   if(!A.songBuf || A.songSrc) return;
-  const s=A.ctx.createBufferSource(); s.buffer=A.songBuf; s.loop=false; s.connect(A.songGain);
-  s.onended=()=>{ playing=false; $("play").textContent="▶ PLAY"; };
+  const s=A.ctx.createBufferSource(); s.buffer=A.songBuf; s.loop=true; s.connect(A.songGain);
   try{ s.start(0,0); }catch(e){}
   A.songSrc=s;
 }
@@ -288,7 +291,7 @@ function setBest(b){}
 
 // ---- sliders ----
 const sl=[
-  ["nr","Signal-Rettung (fragile lauter)",0,100],["glue","Glue (Hall/Delay)",0,100],
+  ["nr","Signal-Rettung (fragile lauter)",0,100],["glue","Reverb",0,100],
   ["noise","Rausch-Stärke",0,100],["art","Artefakte",0,100],
   ["het","Heterodyn-Pfeifen",0,100],["duck","Störungs-Verdrängung",0,100],["lp","Empfänger-Dumpfheit (Hz)",1200,6000]
 ];
@@ -305,6 +308,7 @@ sl.forEach(([k,lab,mn,mx])=>{
 $("play").addEventListener("click",togglePlay);
 $("prev").addEventListener("click",()=>loadPreset(idx-1));
 $("next").addEventListener("click",()=>loadPreset(idx+1));
+$("daynight").addEventListener("click",()=>{ night=!night; const b=$("daynight"); b.textContent=night?"☾ NACHT":"☀ TAG"; b.className="px-2 py-1 text-xs rounded border "+(night?"border-indigo-400 text-indigo-300":"border-amber-400 text-amber-300"); });
 $("file").addEventListener("change",e=>{ if(e.target.files[0]) loadSong(e.target.files[0]); });
 const drop=$("drop");
 drop.addEventListener("dragover",e=>{ e.preventDefault(); drop.className="block border border-dashed border-emerald-400 text-emerald-400 rounded p-3 text-center cursor-pointer mb-2"; });
