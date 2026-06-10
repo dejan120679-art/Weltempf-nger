@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v80</span>
+      <span class="text-amber-400 text-xs">v81</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -39,6 +39,10 @@
       </label>
       <button id="play" class="px-4 py-2 rounded border border-emerald-600 text-emerald-400 hover:bg-emerald-950">▶ PLAY</button>
       <span id="status" class="text-slate-400 text-xs ml-2">kein Lied geladen</span>
+      <div class="mt-2 flex gap-2">
+        <input id="streamUrl" type="text" placeholder="Webradio-Stream-URL (https://…)" class="flex-1 bg-black/40 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+        <button id="btnStream" class="px-3 py-1 rounded border border-slate-700 text-xs hover:border-emerald-400 hover:text-emerald-400">Empfangen</button>
+      </div>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -114,7 +118,7 @@ const P={noise:30,fgLevel:55,breathe:50,lp:3785,crush:0,het:60,nr:0,reverb:0,del
 let masterOn=true;
 const A={};
 let idx=0, cur=PRESETS[0];
-let intfActive=0, playing=false, frames=0, night=false, curNr=0, curDuck=1;
+let intfActive=0, playing=false, frames=0, night=false, curNr=0, curDuck=1, streamMode=false;
 const breath={t:0,v:1};
 
 const $=id=>document.getElementById(id);
@@ -293,8 +297,17 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
 })();
 
 function startSong(){ if(!A.songBuf||A.songSrc) return; const s=A.ctx.createBufferSource(); s.buffer=A.songBuf; s.loop=true; s.connect(A.songGain); s.connect(A.origRaw); try{s.start(0,0);}catch(e){} A.songSrc=s; }
-function loadSong(file){ ensure(); setStatus("lade…"); file.arrayBuffer().then(b=>A.ctx.decodeAudioData(b)).then(buf=>{ A.songBuf=buf; setStatus("Lied: "+file.name.slice(0,28)); if(playing){ try{A.songSrc&&A.songSrc.stop();}catch(e){} A.songSrc=null; startSong(); } }).catch(()=>setStatus("⚠ Datei-Fehler")); }
-function togglePlay(){ ensure(); playing=!playing; $("play").textContent=playing?"⏸ PAUSE":"▶ PLAY"; if(playing){ A.ctx.resume(); startSong(); startForeign(); setStatus("▶ läuft"); } else { A.ctx.suspend(); } }
+function loadSong(file){ ensure(); streamMode=false; if(A.streamEl) A.streamEl.pause(); setStatus("lade…"); file.arrayBuffer().then(b=>A.ctx.decodeAudioData(b)).then(buf=>{ A.songBuf=buf; setStatus("Lied: "+file.name.slice(0,28)); if(playing){ try{A.songSrc&&A.songSrc.stop();}catch(e){} A.songSrc=null; startSong(); } }).catch(()=>setStatus("⚠ Datei-Fehler")); }
+function loadStream(url){
+  if(!url) return;
+  ensure(); A.ctx.resume();
+  if(!A.streamEl){ A.streamEl=new Audio(); A.streamEl.crossOrigin="anonymous"; A.streamSrc=A.ctx.createMediaElementSource(A.streamEl); A.streamSrc.connect(A.songGain); A.streamSrc.connect(A.origRaw); A.streamEl.onerror=()=>setStatus("⚠ Stream-Fehler (URL oder CORS)"); }
+  if(A.songSrc){ try{A.songSrc.stop();}catch(e){} A.songSrc=null; }
+  streamMode=true;
+  A.streamEl.src=url; setStatus("Stream verbinden…");
+  A.streamEl.play().then(()=>{ playing=true; $("play").textContent="⏸ PAUSE"; startForeign(); setStatus("▶ Stream läuft (wenn stumm = CORS)"); }).catch(()=>setStatus("⚠ Stream blockiert (CORS/URL/HTTP)"));
+}
+function togglePlay(){ ensure(); playing=!playing; $("play").textContent=playing?"⏸ PAUSE":"▶ PLAY"; if(playing){ A.ctx.resume(); if(streamMode){ A.streamEl&&A.streamEl.play().catch(()=>{}); } else { startSong(); } startForeign(); setStatus("▶ läuft"); } else { A.ctx.suspend(); if(streamMode&&A.streamEl) A.streamEl.pause(); } }
 
 const meterDefs=[["Signal","#46e07d"],["Lied-Pegel","#46e07d"],["Rauschen","#f4b338"],["Fremdaudio","#ef4b46"]];
 const meterEls=meterDefs.map(([lab,col])=>{
@@ -359,6 +372,8 @@ function btnCls(active){ return "px-3 py-2 rounded border text-xs "+(active?"bor
 function setMaster(on){ masterOn=on; if(A.ctx){ const t=A.ctx.currentTime; A.mOn.gain.setTargetAtTime(on?1:0,t,.03); A.mOff.gain.setTargetAtTime(on?0:1,t,.03);} const b=$("btnMaster"); b.textContent=on?"MASTER AN":"MASTER AUS"; b.className=btnCls(on); }
 
 $("play").addEventListener("click",togglePlay);
+$("btnStream").addEventListener("click",()=>loadStream($("streamUrl").value.trim()));
+$("streamUrl").addEventListener("keydown",e=>{ if(e.key==="Enter") loadStream($("streamUrl").value.trim()); });
 $("btnMaster").addEventListener("click",()=>setMaster(!masterOn));
 $("prev").addEventListener("click",()=>loadPreset(idx-1));
 $("next").addEventListener("click",()=>loadPreset(idx+1));
