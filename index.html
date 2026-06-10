@@ -3,26 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
 <title>Weltempfänger · Werkbank SW</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  @keyframes wfBreathe{0%,100%{opacity:.92}50%{opacity:1}}
   body{margin:0}
   input[type=range]{accent-color:#46e07d}
+  .disp{font-variant-numeric:tabular-nums;letter-spacing:.06em}
 </style>
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · Modell "Landschaft / Stationen".
-  Jede Station: klares Lied in der Mitte, eigene durchgehend laufende Störung rundherum.
-  Beim Reintunen blendet die Störung zurück WÄHREND das Lied klarer wird (Überblendung),
-  weiche Flanke. Zwischen Stationen ruhig. Lied verschwindet nie ganz.
+  Weltempfänger – Werkbank SW · PRESET-Modus (kein Tuning).
+  10 feste, klanglich verschiedene Stationen, je eine nicht tunbare Frequenz.
+  Jede atmet: QSB-Schwund, Fremdaudio/Artefakte kommen & gehen (sparsam).
+  Regler wirken: Signal-Rettung (fragile lauter = Pegel+Kompression, nichts hinzugefügt),
+  Glue (Hall/Delay), Rauschen, Artefakte, Heterodyn, Störungs-Verdrängung, Dumpfheit.
+  (Tuning-Landschaftsmodell ist in Notion dokumentiert.)
 -->
 <div class="min-h-screen text-slate-200 font-mono text-sm p-4" id="root">
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v64</span>
+      <span class="text-amber-400 text-xs">v65</span>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -30,102 +33,90 @@
         Lied hier reinziehen oder klicken zum Laden
         <input id="file" type="file" accept="audio/*" class="hidden">
       </label>
-      <button id="play" class="px-4 py-2 mr-2 rounded border border-emerald-600 text-emerald-400 hover:bg-emerald-950">▶ PLAY</button>
-      <button id="scan" class="px-4 py-2 rounded border border-slate-700 hover:border-emerald-400 hover:text-emerald-400">⟲ RESET (Mitte)</button>
+      <button id="play" class="px-4 py-2 rounded border border-emerald-600 text-emerald-400 hover:bg-emerald-950">▶ PLAY</button>
       <span id="status" class="text-slate-400 text-xs ml-2">kein Lied geladen</span>
     </div>
 
+    <!-- Digitales Stations-Display -->
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
-      <div class="text-xs tracking-widest text-slate-400 mb-5">EMPFANG · ganze Strecke durchtunen (ziehen)</div>
-      <div id="line" class="relative h-16 mb-2 select-none touch-none cursor-ew-resize">
-        <div id="curve" class="absolute" style="top:0;bottom:0;animation:wfBreathe 4s ease-in-out infinite"></div>
-        <div id="ticks" class="absolute" style="top:0;bottom:0;left:0;right:0"></div>
-        <div id="dot" class="absolute" style="top:6px;transform:translateX(-50%);width:10px;height:10px;border-radius:50%;background:#e8f6ee;box-shadow:0 0 8px rgba(255,255,255,.8)"></div>
+      <div class="flex items-center justify-between mb-3">
+        <button id="prev" class="px-3 py-2 rounded border border-slate-700 hover:border-emerald-400 hover:text-emerald-400">◄</button>
+        <div class="text-center">
+          <div class="text-[10px] tracking-widest text-slate-500">STATION</div>
+          <div class="text-slate-300 disp"><span id="pid">—</span> · <span id="pidx">—</span></div>
+        </div>
+        <button id="next" class="px-3 py-2 rounded border border-slate-700 hover:border-emerald-400 hover:text-emerald-400">►</button>
       </div>
-      <div id="meters"></div>
-      <div class="mt-2 text-xs text-slate-400">
-        Preset: <span id="m-name" class="text-slate-200">—</span> · Stationen: <span id="m-intf" class="text-slate-200">—</span>
-        <span id="m-best" class="ml-2 px-2 py-0.5 rounded border border-slate-700 text-slate-500">SIGNAL</span>
+      <div class="rounded-md bg-black/60 border border-slate-800 px-4 py-3">
+        <div class="flex items-end justify-between">
+          <div class="text-amber-400 disp text-3xl leading-none"><span id="pfreq">----</span> <span class="text-base text-amber-600">kHz</span></div>
+          <div class="text-right text-xs text-slate-400 disp">BAND <span id="pband" class="text-slate-200">--</span> · <span id="pmode" class="text-slate-200">AM</span></div>
+        </div>
+        <div class="flex items-center justify-between mt-2 text-xs">
+          <div class="text-slate-400">DISTANZ <span id="pdist" class="text-slate-200">—</span> · INHALT <span id="pcontent" class="text-slate-200">—</span></div>
+          <div class="text-slate-400">SIGNAL <span id="snr" class="text-emerald-400">—</span></div>
+        </div>
+        <div class="mt-2 h-2 bg-black/60 border border-slate-800 rounded overflow-hidden"><div id="sigbar" class="h-full" style="width:0%;background:#46e07d"></div></div>
       </div>
+      <div id="meters" class="mt-3"></div>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
       <div class="text-xs tracking-widest text-slate-400 mb-3">KLANG-REGLER (LIVE)</div>
       <div id="sliders"></div>
-      <div class="text-xs text-slate-500 mt-1">Startwerte fest. „Sweet-Spot-Breite" ohne Funktion im Landschafts-Modell.</div>
     </div>
 
     <div class="text-xs text-slate-500">
-      Jede Station: klares Lied in der Mitte (grün hoch), eigene Störung rundherum (farbiger Strich = Mitte).
-      Beim Reintunen blendet die Störung zurück, während das Lied klarer wird. Lied verschwindet nie ganz.
+      10 feste Stationen, je eine Frequenz. ◄ ► zum Wechseln. Jede atmet (Schwund, Fremdaudio/Artefakte kommen & gehen).
+      „Signal-Rettung" hebt das Vorhandene an (fügt nichts hinzu), „Glue" verklebt mit Hall/Delay.
     </div>
   </div>
 </div>
 
 <script>
-// ---- Audio-Bibliothek: alle 80 echten Snippets aus audio/ ----
 const ALL = ["kw_fx_howling_01.mp3","kw_fx_metamorph_01.mp3","kw_fx_shortwave_01.mp3","kw_loop_01.mp3","kw_loop_02.mp3","kw_loop_03.mp3","kw_loop_04.mp3","kw_loop_05.mp3","kw_loop_06.mp3","kw_loop_07.mp3","kw_loop_08.mp3","kw_loop_09.mp3","kw_numbers_data_01.mp3","kw_numbers_m03_01.mp3","kw_numbers_m03_02.mp3","kw_numbers_m03_03.mp3","kw_numbers_noise_01.mp3","kw_numbers_papanov_01.mp3","kw_numbers_xpa2_01.mp3","kw_numbers_xpa2_02.mp3","kw_static_cracks_01.mp3","kw_static_emerg_01.mp3","kw_static_emerg_02.mp3","kw_static_freqnoise_01.mp3","kw_static_probe_01.mp3","kw_static_probe_02.mp3","kw_static_thunder_01.mp3","kw_static_thunder_02.mp3","kw_static_thunder_03.mp3","kw_static_thunder_04.mp3","kw_static_thunder_05.mp3","kw_station_china9640_01.mp3","kw_station_china9640_02.mp3","kw_station_china9640_03.mp3","kw_station_digi_01.mp3","kw_station_marti_01.mp3","kw_station_marti_02.mp3","kw_station_telecom_01.mp3","kw_tones_beat_01.mp3","kw_tones_beeploop_01.mp3","kw_tones_bleep_01.mp3","kw_tones_creepy_01.mp3","kw_tones_melodies_01.mp3","kw_tones_rhythmic_01.mp3","kw_tones_staticbeeps_01.mp3","kw_tones_statictones_01.mp3","kw_tones_zappy_01.mp3","kw_voice_chatter_01.mp3","kw_voice_faint_01.mp3","kw_voice_foreign_01.mp3","kw_voice_foreign_02.mp3","kw_voice_garble_01.mp3","kw_voice_ham_01.mp3","kw_voice_ham_02.mp3","kw_voice_ham_03.mp3","kw_voice_mumbled_01.mp3","kw_voice_mumbled_02.mp3","kw_voice_phonetic_01.mp3","kw_voice_pirates_01.mp3","kw_voice_pirates_02.mp3","kw_voice_preacher_01.mp3","kw_voice_spanish_01.mp3","kw_voice_spanish_02.mp3","kw_voicep_china_up3.mp3","kw_voicep_foreign_dn3.mp3","kw_voicep_foreign_up2.mp3","kw_voicep_garble_dn3.mp3","kw_voicep_garble_up4.mp3","kw_voicep_ham_dn3.mp3","kw_voicep_mumbled_dn2.mp3","kw_voicep_mumbled_up3.mp3","kw_voicep_phonetic_dn2.mp3","kw_voicep_phonetic_up4.mp3","kw_websdr_12072khz_01.mp3","kw_websdr_13412khz_01.mp3","kw_websdr_229khz_01.mp3","kw_websdr_2733khz_01.mp3","kw_websdr_569khz_01.mp3","kw_websdr_683khz_01.mp3","kw_websdr_746khz_01.mp3"];
-
 const POOL = {
   voices:  ALL.filter(n=>n.includes("voice")),
   numbers: ALL.filter(n=>n.includes("numbers")),
   tones:   ALL.filter(n=>n.includes("tones")),
   static:  ALL.filter(n=>n.includes("static")||n.includes("fx")),
-  station: ALL.filter(n=>n.includes("station")),
   websdr:  ALL.filter(n=>n.includes("websdr"))
 };
-const TYPECOL={voices:"#46e07d",numbers:"#f4b338",tones:"#7db4ff",static:"#ef4b46",station:"#c084fc",websdr:"#22d3d3"};
+const CONTENTLBL={voices:"Stimmen",numbers:"Zahlen",tones:"Töne/Morse",static:"Static",websdr:"WebSDR",null:"—"};
 
-const GREEN={l:10,r:90};
-const toScreen=p=>GREEN.l+p*(GREEN.r-GREEN.l);
+// ---- 10 feste Stationen (Frequenz von mir nach Klang/Distanz vergeben) ----
+// q0=Grundqualität(nah/klar..fern/schwach), lp=Dumpfheit-Decke, gain=Lautstärke,
+// noise=Rauschanteil, art=Verzerrung, het=Pfeifen, foreign=Fremdaudio-Typ|null,
+// fadeDepth=wie stark es atmet (0..~0.9), seed/snIdx=fest/wiederholbar.
+const PRESETS=[
+  {id:"STN-01",freq:6075, band:"49 m",dist:"NAH · KLAR",     q0:0.95,lp:3800,gain:1.00,noise:0.5,art:0.05,het:0.0,foreign:"voices", fadeDepth:0.22,seed:0.4,snIdx:2},
+  {id:"STN-02",freq:7245, band:"41 m",dist:"MITTEL",         q0:0.80,lp:3200,gain:0.92,noise:0.8,art:0.40,het:0.1,foreign:"numbers",fadeDepth:0.40,seed:1.5,snIdx:1},
+  {id:"STN-03",freq:9420, band:"31 m",dist:"KLAR · RUHIG",   q0:0.90,lp:3600,gain:0.95,noise:0.5,art:0.10,het:0.0,foreign:null,     fadeDepth:0.45,seed:2.6,snIdx:0},
+  {id:"STN-04",freq:11750,band:"25 m",dist:"FERN · SCHWACH", q0:0.50,lp:2200,gain:0.72,noise:1.4,art:0.70,het:0.0,foreign:"static", fadeDepth:0.70,seed:3.7,snIdx:3},
+  {id:"STN-05",freq:13710,band:"22 m",dist:"MITTEL · PFEIFT",q0:0.70,lp:2800,gain:0.85,noise:0.9,art:0.45,het:1.0,foreign:"tones",  fadeDepth:0.50,seed:4.8,snIdx:4},
+  {id:"STN-06",freq:15580,band:"19 m",dist:"FERN · FRAGIL",  q0:0.45,lp:2000,gain:0.66,noise:1.5,art:0.30,het:0.2,foreign:"voices", fadeDepth:0.82,seed:5.9,snIdx:6},
+  {id:"STN-07",freq:17790,band:"16 m",dist:"NAH · WEIT",     q0:0.85,lp:3400,gain:0.95,noise:0.7,art:0.20,het:0.3,foreign:"websdr", fadeDepth:0.35,seed:6.1,snIdx:1},
+  {id:"STN-08",freq:21500,band:"13 m",dist:"SEHR FERN",      q0:0.34,lp:1700,gain:0.55,noise:1.8,art:0.40,het:0.2,foreign:"voices", fadeDepth:0.86,seed:7.2,snIdx:9},
+  {id:"STN-09",freq:5950, band:"49 m",dist:"KLAR · STARK",   q0:0.93,lp:3700,gain:1.00,noise:0.4,art:0.05,het:0.0,foreign:null,     fadeDepth:0.28,seed:8.3,snIdx:0},
+  {id:"STN-10",freq:9650, band:"31 m",dist:"MITTEL · FERN",  q0:0.60,lp:2600,gain:0.78,noise:1.2,art:0.45,het:0.6,foreign:"numbers",fadeDepth:0.60,seed:9.4,snIdx:2}
+];
+function presetSnippet(p){ const pool=POOL[p.foreign]; return (pool&&pool.length)? pool[p.snIdx%pool.length] : null; }
 
-function pick(a){ return a[Math.random()*a.length|0]; }
 function tanhCurve(k){ const n=1024,c=new Float32Array(n); for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(k*x);} return c; }
-function bump(x){ x=Math.abs(x); return x>=1?0:0.5*(1+Math.cos(Math.PI*x)); }
-// langsames Schwund-Signal (QSB), 0..1, je Seed eigener Verlauf
-function fade01(t,seed){ const v=0.5+0.5*(0.6*Math.sin(t*0.22+seed)+0.4*Math.sin(t*0.085+seed*1.7+1.3)); return v<0?0:(v>1?1:v); }
+function fade01(t,seed){ const v=0.5+0.5*(0.6*Math.sin(t*0.20+seed)+0.4*Math.sin(t*0.082+seed*1.7+1.3)); return v<0?0:(v>1?1:v); }
+function makeIR(ctx,sec,decay){ const r=ctx.sampleRate,len=Math.max(1,sec*r|0),b=ctx.createBuffer(1,len,r),d=b.getChannelData(0); for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay); return b; }
 
-// ---- EIN Preset: 6 Stationen. pw=Klar-Breite (Lied), cw=Einzugsbreite (Störung rundherum).
-function makeLandscape(){
-  const stations=[
-    {pos:0.00,pw:0.050,cw:0.100,h:0.20,gain:0.30,tone:0.55,type:"voices", fseed:0.1, fadeDepth:0.85}, // ferne Stelle, linker Anschlag
-    {pos:0.16,pw:0.045,cw:0.085,h:0.82,gain:0.74,tone:0.78,type:"numbers",fseed:1.9},
-    {pos:0.32,pw:0.048,cw:0.095,h:0.95,gain:0.92,tone:1.18,type:"tones",  fseed:3.1},
-    {pos:0.48,pw:0.042,cw:0.085,h:0.70,gain:0.60,tone:0.65,type:"static", fseed:4.6},
-    {pos:0.64,pw:0.045,cw:0.090,h:0.90,gain:0.85,tone:0.95,type:"voices", fseed:5.8},
-    {pos:0.80,pw:0.048,cw:0.095,h:1.00,gain:1.00,tone:1.25,type:"websdr", fseed:7.2},
-    {pos:1.00,pw:0.050,cw:0.100,h:0.16,gain:0.22,tone:0.45,type:"numbers",fseed:8.3, fadeDepth:0.90} // andere ferne Stelle, rechter Anschlag
-  ];
-  return { name:"Bandabschnitt A", stations, floor:0.14 };
-}
-function qAt(t){ if(!cur) return 0; let e=0; for(const s of cur.stations){ e=Math.max(e, s.h*bump((t-s.pos)/s.pw)); } return Math.max(cur.floor,e); }
-
-// ---- feste Startwerte ----
-const P={sweet:22,noise:3,art:73,het:90,duck:70,lp:3785,nr:0,glue:0};
-
+const P={noise:3,art:73,het:90,duck:70,lp:3785,nr:0,glue:0};
 const A={};
-let cur=null;
-let mark=0.5;
+let idx=0;
+let cur=PRESETS[0];
 let intfActive=0;
-const loads={};
 let playing=false;
 let frames=0;
 const breath={t:0,v:1};
 
-// ---- DOM ----
 const $=id=>document.getElementById(id);
-const lineEl=$("line"), curveEl=$("curve"), dotEl=$("dot"), ticksEl=$("ticks");
 function setStatus(t){ $("status").textContent=t; }
-function setMarkPct(p){ dotEl.style.left=p+"%"; }
-function applyBoost(){
-  if(!A.ctx) return;
-  const nr=P.nr/100, t=A.ctx.currentTime;
-  A.bComp.threshold.value=-14-nr*20; A.bComp.ratio.value=2+nr*4;   // hebt das leise/ambiente Vorhandene
-  A.bMakeup.gain.setTargetAtTime(1+nr*1.3,t,.05);                  // nur lauter — fügt nichts hinzu
-  A.bTame.gain.setTargetAtTime(-nr*3,t,.05);                       // Schmerz-Cut gegen Kreischen
-}
-function applyGlue(){ if(!A.ctx) return; A.glueWet.gain.setTargetAtTime((P.glue/100)*0.9, A.ctx.currentTime, .06); }
-function makeIR(ctx,sec,decay){ const r=ctx.sampleRate,len=Math.max(1,sec*r|0),b=ctx.createBuffer(1,len,r),d=b.getChannelData(0); for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay); return b; }
 
 function ensure(){
   if(A.ctx) return A;
@@ -134,7 +125,7 @@ function ensure(){
   const hp=ctx.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=320;
   const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=P.lp;
   const pkf=ctx.createBiquadFilter(); pkf.type="peaking"; pkf.frequency.value=1700; pkf.Q.value=1.1; pkf.gain.value=4.5;
-  const shaper=ctx.createWaveShaper(); shaper.curve=tanhCurve(1.8); shaper.oversample="2x";
+  const shaper=ctx.createWaveShaper(); shaper.curve=tanhCurve(1.4); shaper.oversample="2x";
   const agc=ctx.createDynamicsCompressor(); agc.threshold.value=-28; agc.ratio.value=4; agc.attack.value=.05; agc.release.value=.4;
   const lim=ctx.createDynamicsCompressor(); lim.threshold.value=-3; lim.ratio.value=20; lim.attack.value=.003; lim.release.value=.12;
   const out=ctx.createGain(); out.gain.value=.9;
@@ -142,17 +133,17 @@ function ensure(){
   const len=ctx.sampleRate*2, nb=ctx.createBuffer(1,len,ctx.sampleRate), d=nb.getChannelData(0);
   for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
   const noiseSrc=ctx.createBufferSource(); noiseSrc.buffer=nb; noiseSrc.loop=true;
-  const noiseFilt=ctx.createBiquadFilter(); noiseFilt.type="bandpass"; noiseFilt.frequency.value=1600; noiseFilt.Q.value=.8;
+  const noiseFilt=ctx.createBiquadFilter(); noiseFilt.type="bandpass"; noiseFilt.frequency.value=1600; noiseFilt.Q.value=.7;
   const noiseGain=ctx.createGain(); noiseGain.gain.value=0;
   noiseSrc.connect(noiseFilt); noiseFilt.connect(noiseGain); noiseGain.connect(bus); noiseSrc.start();
   const songGain=ctx.createGain(); songGain.gain.value=0;
   songGain.channelCount=1; songGain.channelCountMode="explicit"; songGain.channelInterpretation="speakers";
-  // Boost „Fragile lauter": NUR Pegel + Kompression auf der Musik (fügt NICHTS hinzu — das Verletzte bleibt verletzt)
+  // Boost „Fragile lauter": NUR Pegel + Kompression auf der Musik (fügt nichts hinzu)
   const bComp=ctx.createDynamicsCompressor(); bComp.threshold.value=-12; bComp.ratio.value=2; bComp.attack.value=.01; bComp.release.value=.18;
   const bMakeup=ctx.createGain(); bMakeup.gain.value=1;
   const bTame=ctx.createBiquadFilter(); bTame.type="peaking"; bTame.frequency.value=3200; bTame.Q.value=1.0; bTame.gain.value=0;
   songGain.connect(bComp); bComp.connect(bMakeup); bMakeup.connect(bTame); bTame.connect(bus);
-  // Glue: Hall + Delay auf der verletzten Musik (zum Zusammenkleben), Default aus
+  // Glue: Hall + Delay auf der Musik
   const glueIn=ctx.createGain(); bTame.connect(glueIn);
   const conv=ctx.createConvolver(); conv.buffer=makeIR(ctx,2.2,2.5);
   const dly=ctx.createDelay(1.0); dly.delayTime.value=0.22;
@@ -161,133 +152,104 @@ function ensure(){
   const glueWet=ctx.createGain(); glueWet.gain.value=0; conv.connect(glueWet); dly.connect(glueWet); glueWet.connect(bus);
   const hetOsc=ctx.createOscillator(); hetOsc.type="sine"; hetOsc.frequency.value=700;
   const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(bus); hetOsc.start();
-  Object.assign(A,{ctx,bus,hp,lp,pkf,shaper,agc,lim,out,noiseGain,noiseFilt,songGain,bComp,bMakeup,bTame,glueWet,hetOsc,hetGain,songBuf:null,songSrc:null,bufs:{}});
+  Object.assign(A,{ctx,bus,hp,lp,pkf,shaper,agc,lim,out,noiseGain,noiseFilt,songGain,bComp,bMakeup,bTame,glueWet,hetOsc,hetGain,fg:null,fgSrc:null,songBuf:null,songSrc:null,bufs:{}});
   applyBoost(); applyGlue();
-  preloadZones(); startZones();
+  startForeign();
   return A;
 }
 
-// ---- Snippets laden + Stationen als Dauer-Quellen ----
-function loadOne(name){
-  if(!A.ctx || A.bufs[name] || loads[name]==="loading") return;
-  loads[name]="loading";
-  fetch("audio/"+name).then(r=>{ if(!r.ok) throw 0; return r.arrayBuffer(); })
-    .then(b=>A.ctx.decodeAudioData(b))
-    .then(buf=>{ A.bufs[name]=buf; loads[name]="ok"; startZones(); })
-    .catch(()=>{ loads[name]="fail"; });
+function applyBoost(){
+  if(!A.ctx) return;
+  const nr=P.nr/100, t=A.ctx.currentTime;
+  A.bComp.threshold.value=-14-nr*20; A.bComp.ratio.value=2+nr*4;
+  A.bMakeup.gain.setTargetAtTime(1+nr*1.3,t,.05);
+  A.bTame.gain.setTargetAtTime(-nr*3,t,.05);
 }
-function preloadZones(){ if(!A.ctx||!cur) return; cur.stations.forEach(s=>{ if(s.snippet) loadOne(s.snippet); }); }
-function startZones(){
-  if(!A.ctx||!cur) return;
-  cur.stations.forEach(s=>{
-    if(s.src||!s.snippet) return;
-    const buf=A.bufs[s.snippet]; if(!buf) return;
-    const g=A.ctx.createGain(); g.gain.value=0; g.connect(A.bus);
-    const src=A.ctx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(g);
-    try{ src.start(0, Math.random()*buf.duration); }catch(e){}
-    s.src=src; s.g=g;
-  });
+function applyGlue(){ if(!A.ctx) return; A.glueWet.gain.setTargetAtTime((P.glue/100)*0.9,A.ctx.currentTime,.06); }
+
+function loadAudio(name,cb){
+  if(!A.ctx||A.bufs[name]) return cb&&cb();
+  fetch("audio/"+name).then(r=>{if(!r.ok)throw 0;return r.arrayBuffer();}).then(b=>A.ctx.decodeAudioData(b)).then(buf=>{A.bufs[name]=buf; cb&&cb();}).catch(()=>{});
 }
-function stopZones(){
-  if(!cur) return;
-  cur.stations.forEach(s=>{ if(s.src){try{s.src.stop();}catch(e){}} if(s.g){try{s.g.disconnect();}catch(e){}} s.src=null; s.g=null; });
+function startForeign(){
+  if(!A.ctx||!cur||!cur.foreign) return;
+  const name=presetSnippet(cur); if(!name) return;
+  if(!A.bufs[name]){ loadAudio(name, startForeign); return; }
+  if(A.fgSrc) return;
+  const g=A.ctx.createGain(); g.gain.value=0; g.connect(A.bus);
+  const s=A.ctx.createBufferSource(); s.buffer=A.bufs[name]; s.loop=true; s.connect(g);
+  try{ s.start(0, Math.random()*A.bufs[name].duration); }catch(e){}
+  A.fgSrc=s; A.fg=g;
+}
+function stopForeign(){ if(A.fgSrc){ try{A.fgSrc.stop();}catch(e){} } if(A.fg){ try{A.fg.disconnect();}catch(e){} } A.fgSrc=null; A.fg=null; }
+
+function loadPreset(i){
+  idx=(i+PRESETS.length)%PRESETS.length; cur=PRESETS[idx];
+  stopForeign();
+  renderReadout();
+  if(A.ctx) startForeign();
+}
+function renderReadout(){
+  $("pid").textContent=cur.id;
+  $("pidx").textContent=String(idx+1).padStart(2,"0")+" / "+PRESETS.length;
+  $("pfreq").textContent=cur.freq;
+  $("pband").textContent=cur.band;
+  $("pdist").textContent=cur.dist;
+  $("pcontent").textContent=cur.foreign? CONTENTLBL[cur.foreign] : "rein";
+}
+function updateSNR(q){
+  $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" · "+Math.round(5+q*32)+" dB";
+  $("sigbar").style.width=Math.round(Math.max(0,Math.min(1,q))*100)+"%";
 }
 
-// ---- Empfangs-Landschaft zeichnen ----
-function renderCurve(arr){
-  curveEl.style.left=GREEN.l+"%"; curveEl.style.width=(GREEN.r-GREEN.l)+"%";
-  const w=100/arr.length;
-  curveEl.innerHTML=arr.map((q,i)=>{
-    const h=14+q*34, a=0.06+q*0.9;
-    const shadow=q>0.78? "0 0 12px rgba(70,224,125,"+(q*0.7)+")":"none";
-    return '<div class="absolute rounded-sm" style="left:'+(i*w)+'%;width:'+(w+0.6)+'%;top:50%;transform:translateY(-50%);height:'+h+'px;background:rgba(70,224,125,'+a+');box-shadow:'+shadow+'"></div>';
-  }).join("");
-}
-function rebuildCurve(){ const N=120,arr=[]; for(let i=0;i<N;i++) arr.push(qAt(i/(N-1))); renderCurve(arr); }
-function renderTicks(){
-  if(!cur){ ticksEl.innerHTML=""; return; }
-  ticksEl.innerHTML=cur.stations.map(s=>{
-    const col=TYPECOL[s.type]||"#999";
-    return '<div class="absolute" title="'+s.type+'" style="top:2px;left:'+toScreen(s.pos)+'%;transform:translateX(-50%);width:3px;height:54px;background:'+col+';opacity:.5"></div>';
-  }).join("");
-}
-function renderIntfInfo(){
-  if(!cur){ $("m-intf").textContent="—"; return; }
-  $("m-intf").innerHTML=cur.stations.map(s=>{ const col=TYPECOL[s.type]||"#999"; return '<span style="color:'+col+'">'+s.type+'</span>'; }).join("  ·  ");
-}
-
-function newPreset(){
-  stopZones();
-  cur=makeLandscape(); mark=0.5;
-  cur.stations.forEach(s=>{ const pool=POOL[s.type]||[]; s.snippet=pool.length?pick(pool):null; s.src=null; s.g=null; });
-  setMarkPct(toScreen(0.5));
-  rebuildCurve(); renderTicks(); renderIntfInfo();
-  $("m-name").textContent=cur.name;
-  preloadZones(); startZones();
-}
-
-// ---- animation frame: Lied + Störung blenden über ----
+// ---- animation frame: Station atmet ----
 (function frame(ts){
   if(A.ctx && playing && cur){
-    const now=A.ctx.currentTime, T=now;
-    if(ts-breath.t>700){ breath.t=ts; breath.v=0.9+Math.random()*0.12; }
-    // klarste Station bestimmt Lied (Lautstärke/Helligkeit je Station verschieden)
-    let pk=null,pe=0; for(const s of cur.stations){ const e=s.h*bump((mark-s.pos)/s.pw); if(e>pe){ pe=e; pk=s; } }
-    const q=Math.max(cur.floor,pe);
-    const nr=P.nr/100;                                    // Boost: Musik lauter, Fremdsignale reziprok leiser
-    // Störung jeder Station: Einzug * (1 - Klarheit), zusätzlich eigener Schwund -> blendet mit dem Lied über
-    let im=0, sb=null,sf=0;
-    for(const s of cur.stations){
-      const inSt=bump((mark-s.pos)/s.cw), songEnv=bump((mark-s.pos)/s.pw);
-      const fade=inSt*(1-songEnv);                 // hoch am Rand der Station, 0 in der Mitte
-      if(s.g){ const stF=0.4+0.6*fade01(T,s.fseed+9); const lvl=fade*stF*0.9*(1-nr*0.92); s.g.gain.setTargetAtTime(lvl,now,.05); if(lvl>im) im=lvl; }
-      if(fade>sf){ sf=fade; sb=s; }
+    const now=A.ctx.currentTime, T=now, nr=P.nr/100;
+    if(ts-breath.t>700){ breath.t=ts; breath.v=0.92+Math.random()*0.10; }
+    const fade=(1-cur.fadeDepth)+cur.fadeDepth*fade01(T,cur.seed);   // Atmen (QSB)
+    const q=cur.q0*fade;
+    // Fremdaudio kommt & geht (sparsam)
+    let fgLvl=0;
+    if(A.fg){
+      const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55);
+      fgLvl=cur.foreign? gate*0.5*(1-nr*0.92):0;
+      A.fg.gain.setTargetAtTime(fgLvl,now,.08);
     }
-    intfActive=im;
-    // QSB: langsamer Schwund des Lieds (sinkt ins Rauschen und kommt zurück)
-    const fd = pk? (pk.fadeDepth||0.55) : 0;
-    const songFade = pk? ((1-fd) + fd*fade01(T,pk.fseed)) : 1;
-    const dduck=1-(P.duck/100)*intfActive*0.6;
-    const vol = pk? (1-pe) + pe*pk.gain : 1;
-    let songLvl=q*vol*songFade*breath.v*Math.max(0,dduck);
-    songLvl=Math.max(0.08, songLvl);                // Lied nie ganz weg (Boost/Make-up macht es lauter)
-    A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.02);
-    // AGC-Pumpen: wenn das Lied schwindet, schwillt das Rauschen — Boost senkt es reziprok
-    const noiseLvl=(P.noise/100)*(0.10+(1-q)*0.8)*(1+(1-songFade)*1.6)*(1-nr*0.85);
-    A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.05);
-    const tone = pk? pk.tone : 1;
-    A.lp.frequency.setTargetAtTime(1300+q*(P.lp*tone-1300),now,.02);
-    // Verzerrung an der Stör-Flanke (Static am stärksten), blendet zur Mitte zurück — Boost senkt reziprok
-    const songEnvB = sb? bump((mark-sb.pos)/sb.pw):0;
-    const artW = sb? (sb.type==="static"?1.6:(sb.type==="tones"?0.3:0.4)) : 0;
-    A.shaper.curve=tanhCurve(1.4+(P.art/100)*sf*(1-songEnvB)*2.6*artW*(1-nr*0.7));
-    // Heterodyn als Zero-Beat-Sweep: pfeift beim Zutunen herunter, fast 0 in der Mitte — Boost senkt reziprok
-    const hetW = sb? (sb.type==="tones"?1.0:(sb.type==="websdr"?0.45:0.18)) : 0;
-    A.hetGain.gain.setTargetAtTime((P.het/1000)*hetW*sf*(1-songEnvB)*0.12*(1-nr*0.85),now,.04);
-    const dC = sb? Math.abs(mark-sb.pos)/sb.cw : 1;
-    A.hetOsc.frequency.setTargetAtTime(40+dC*2600,now,.05);
-    if(frames++%5===0){ updateMeters(q,songLvl,noiseLvl,intfActive); setBest(q>0.8); }
+    intfActive=fgLvl;
+    const duck=1-(P.duck/100)*fgLvl*0.6;
+    let songLvl=q*cur.gain*breath.v*Math.max(0,duck);
+    songLvl=Math.max(0.04,songLvl);                  // kann fast verschwinden, kommt zurück
+    A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.03);
+    const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1-nr*0.85);
+    A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.06);
+    const lpc=Math.min(P.lp,cur.lp);
+    A.lp.frequency.setTargetAtTime(1100+q*(lpc-1100),now,.04);
+    // Artefakte kommen & gehen mit dem Atmen, reziprok zum Boost
+    const aw=cur.art*(0.5+(1-fade)*0.9);
+    A.shaper.curve=tanhCurve(1.4+(P.art/100)*aw*(1-nr*0.7));
+    A.hetGain.gain.setTargetAtTime((P.het/1000)*cur.het*(0.4+(1-fade))*0.10*(1-nr*0.85),now,.05);
+    A.hetOsc.frequency.setTargetAtTime(500+cur.q0*1400,now,.1);
+    if(frames++%6===0){ updateMeters(q,songLvl,noiseLvl,fgLvl); setBest(q>0.75); updateSNR(q); }
   }
   requestAnimationFrame(frame);
 })();
 
-// ---- atmosphärische Knackser / Static-Crashes (häufiger bei schwachem Signal) ----
+// ---- atmosphärische Knackser (mehr bei rauschigen/fernen Stationen) ----
 (function crackle(){
-  if(A.ctx && playing){
-    const q=cur?qAt(mark):0;
-    if(Math.random() < 0.12+(1-q)*0.30){
-      const ctx=A.ctx, dur=0.02+Math.random()*0.07, len=Math.max(1,ctx.sampleRate*dur|0);
+  if(A.ctx && playing && cur){
+    if(Math.random() < 0.05+cur.noise*0.10){
+      const ctx=A.ctx, dur=0.02+Math.random()*0.06, len=Math.max(1,ctx.sampleRate*dur|0);
       const buf=ctx.createBuffer(1,len,ctx.sampleRate), d=buf.getChannelData(0);
       for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2);
       const s=ctx.createBufferSource(); s.buffer=buf;
-      const bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=900+Math.random()*2400; bp.Q.value=0.7;
-      const dk=P.nr/100;
-      const g=ctx.createGain(); g.gain.value=(P.noise/100)*(0.6+(1-q)*1.4)*(0.6+Math.random())*(1-dk*0.85);
+      const bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=900+Math.random()*2200; bp.Q.value=0.7;
+      const g=ctx.createGain(); g.gain.value=(P.noise/100)*cur.noise*(0.5+Math.random())*(1-(P.nr/100)*0.85);
       s.connect(bp); bp.connect(g); g.connect(A.bus); s.start();
       s.onended=()=>{ try{g.disconnect();}catch(e){} };
     }
   }
-  setTimeout(crackle, 220+Math.random()*800);
+  setTimeout(crackle, 240+Math.random()*700);
 })();
 
 function startSong(){
@@ -307,26 +269,11 @@ function loadSong(file){
 function togglePlay(){
   ensure();
   playing=!playing; $("play").textContent=playing?"⏸ PAUSE":"▶ PLAY";
-  if(playing){ A.ctx.resume(); startSong(); startZones(); setStatus("▶ läuft"); } else { A.ctx.suspend(); }
+  if(playing){ A.ctx.resume(); startSong(); startForeign(); setStatus("▶ läuft"); } else { A.ctx.suspend(); }
 }
-
-// ---- drag ----
-function setMarkFromX(clientX){
-  const r=lineEl.getBoundingClientRect();
-  const screenPct=((clientX-r.left)/r.width)*100;
-  let p=(screenPct-GREEN.l)/(GREEN.r-GREEN.l);
-  p=Math.max(0,Math.min(1,p));
-  mark=p; setMarkPct(toScreen(p));
-}
-(function(){
-  let dragging=false;
-  lineEl.addEventListener("pointerdown",e=>{ dragging=true; setMarkFromX(e.clientX); });
-  window.addEventListener("pointermove",e=>{ if(dragging) setMarkFromX(e.clientX); });
-  window.addEventListener("pointerup",()=>{ dragging=false; });
-})();
 
 // ---- meters ----
-const meterDefs=[["Signal","#46e07d"],["Lied-Pegel","#46e07d"],["Rauschen","#f4b338"],["Störung","#ef4b46"]];
+const meterDefs=[["Signal","#46e07d"],["Lied-Pegel","#46e07d"],["Rauschen","#f4b338"],["Fremdaudio","#ef4b46"]];
 const meterEls=meterDefs.map(([lab,col])=>{
   const row=document.createElement("div"); row.className="flex items-center gap-2 my-1";
   row.innerHTML='<span class="w-28 text-slate-400">'+lab+'</span>'
@@ -337,14 +284,13 @@ const meterEls=meterDefs.map(([lab,col])=>{
 });
 function setBar(i,v){ const c=Math.max(0,Math.min(1,v)); meterEls[i].bar.style.width=(c*100)+"%"; meterEls[i].pct.textContent=Math.round(c*100)+"%"; }
 function updateMeters(sig,song,noise,intf){ setBar(0,sig); setBar(1,song); setBar(2,noise); setBar(3,intf); }
-function setBest(b){ const e=$("m-best"); e.className="ml-2 px-2 py-0.5 rounded border "+(b?"border-amber-400 text-amber-400":"border-slate-700 text-slate-500"); }
+function setBest(b){}
 
 // ---- sliders ----
 const sl=[
-  ["sweet","Sweet-Spot-Breite (aus)",4,40],["noise","Rausch-Stärke",0,100],["art","Artefakte",0,100],
-  ["het","Heterodyn-Pfeifen",0,100],["duck","Störungs-Verdrängung",0,100],["lp","Empfänger-Dumpfheit (Hz)",1200,6000],
-  ["nr","Signal-Rettung (Boost)",0,100],
-  ["glue","Glue (Hall/Delay)",0,100]
+  ["nr","Signal-Rettung (fragile lauter)",0,100],["glue","Glue (Hall/Delay)",0,100],
+  ["noise","Rausch-Stärke",0,100],["art","Artefakte",0,100],
+  ["het","Heterodyn-Pfeifen",0,100],["duck","Störungs-Verdrängung",0,100],["lp","Empfänger-Dumpfheit (Hz)",1200,6000]
 ];
 sl.forEach(([k,lab,mn,mx])=>{
   const row=document.createElement("div"); row.className="flex items-center gap-3 my-2";
@@ -356,9 +302,9 @@ sl.forEach(([k,lab,mn,mx])=>{
   $("sliders").appendChild(row);
 });
 
-// ---- buttons + drop ----
 $("play").addEventListener("click",togglePlay);
-$("scan").addEventListener("click",()=>{ ensure(); newPreset(); });
+$("prev").addEventListener("click",()=>loadPreset(idx-1));
+$("next").addEventListener("click",()=>loadPreset(idx+1));
 $("file").addEventListener("change",e=>{ if(e.target.files[0]) loadSong(e.target.files[0]); });
 const drop=$("drop");
 drop.addEventListener("dragover",e=>{ e.preventDefault(); drop.className="block border border-dashed border-emerald-400 text-emerald-400 rounded p-3 text-center cursor-pointer mb-2"; });
@@ -366,7 +312,7 @@ drop.addEventListener("dragleave",()=>{ drop.className="block border border-dash
 drop.addEventListener("drop",e=>{ e.preventDefault(); drop.className="block border border-dashed border-slate-700 text-slate-400 rounded p-3 text-center cursor-pointer mb-2"; const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) loadSong(f); });
 
 // ---- boot ----
-newPreset();
+renderReadout();
 </script>
 </body>
 </html>
