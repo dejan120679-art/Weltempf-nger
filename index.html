@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v77</span>
+      <span class="text-amber-400 text-xs">v78</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -119,7 +119,7 @@ let masterOn=true, srcOrig=false, presetView=false;
 const ctlMap={};
 const A={};
 let idx=0, cur=PRESETS[0];
-let intfActive=0, playing=false, frames=0, night=false, curNr=0;
+let intfActive=0, playing=false, frames=0, night=false, curNr=0, curDuck=1;
 const breath={t:0,v:1};
 
 const $=id=>document.getElementById(id);
@@ -161,6 +161,9 @@ function ensure(){
   const safetyLim=ctx.createDynamicsCompressor(); safetyLim.threshold.value=-1.5; safetyLim.knee.value=0; safetyLim.ratio.value=20; safetyLim.attack.value=.002; safetyLim.release.value=.05;
   // Master-Stufe (sichtbar schaltbar): Aufräumen unten + milde Bus-Glue + Loudness-Angleich
   const mHP=ctx.createBiquadFilter(); mHP.type="highpass"; mHP.frequency.value=90;
+  const mLow=ctx.createBiquadFilter(); mLow.type="lowshelf"; mLow.frequency.value=180; mLow.gain.value=3.5;   // Wärme/Körper
+  const mMid=ctx.createBiquadFilter(); mMid.type="peaking"; mMid.frequency.value=1500; mMid.Q.value=1.0; mMid.gain.value=-3.5; // Funk-Honk raus
+  const mAir=ctx.createBiquadFilter(); mAir.type="highshelf"; mAir.frequency.value=4200; mAir.gain.value=2;   // dezent Luft
   const mComp=ctx.createDynamicsCompressor(); mComp.threshold.value=-24; mComp.ratio.value=2; mComp.knee.value=6; mComp.attack.value=.1; mComp.release.value=.5;
   const mMakeup=ctx.createGain(); mMakeup.gain.value=1.7;
   const mOn=ctx.createGain(); mOn.gain.value=masterOn?1:0; const mOff=ctx.createGain(); mOff.gain.value=masterOn?0:1;
@@ -177,7 +180,7 @@ function ensure(){
   lim.connect(del); del.connect(delWet); delWet.connect(mix);
   // Tail: mix -> Schärfe-Trim -> [Master an/aus] -> Soft-Clip -> Brickwall -> chainGate -> out
   mix.connect(safeBell);
-  safeBell.connect(mHP); mHP.connect(mComp); mComp.connect(mMakeup); mMakeup.connect(mOn); mOn.connect(softSafe);
+  safeBell.connect(mHP); mHP.connect(mLow); mLow.connect(mMid); mMid.connect(mAir); mAir.connect(mComp); mComp.connect(mMakeup); mMakeup.connect(mOn); mOn.connect(softSafe);
   safeBell.connect(mOff); mOff.connect(softSafe);
   softSafe.connect(safetyLim); safetyLim.connect(chainGate); chainGate.connect(out);
   origGate.connect(out);
@@ -245,7 +248,7 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const cr=P.crush/100;
     const clean=1-nr;                                     // linearer Verlauf über den ganzen Regler
     const crushDuck=Math.pow(1-cr*0.7,1.2);               // Verzerrung schiebt Stör/Rausch reziprok runter
-    const duckF=clean*crushDuck;                          // gemeinsamer Absenk-Faktor
+    const duckF=clean*crushDuck; curDuck=duckF;            // gemeinsamer Absenk-Faktor
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.92+Math.random()*0.10; }
     const m=parseInt(cur.band)||25, nf=Math.max(-1,Math.min(1,(m-31)/18));
     let prop=night?(1+nf*0.45):(1-nf*0.45); prop=Math.max(0.3,Math.min(1.4,prop));
@@ -263,7 +266,7 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const flut=1-drive*(1-wob);
     songLvl*=(1-drive*0.35)*flut;
     A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.008);
-    const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*duckF;
+    const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*duckF*0.5;
     A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.06);
     const lpc=Math.max(700,Math.min(6000, cur.lp*(P.lp/3785)));
     A.lp.frequency.setTargetAtTime(900+q*(lpc-900),now,.04);
@@ -283,7 +286,7 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
       for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2);
       const s=ctx.createBufferSource(); s.buffer=buf;
       const bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=900+Math.random()*2200; bp.Q.value=0.7;
-      const g=ctx.createGain(); g.gain.value=(P.noise/100)*cur.noise*(0.5+Math.random());
+      const g=ctx.createGain(); g.gain.value=(P.noise/100)*cur.noise*(0.5+Math.random())*0.5*curDuck;
       s.connect(bp); bp.connect(g); g.connect(A.bus); s.start();
       s.onended=()=>{ try{g.disconnect();}catch(e){} };
     }
