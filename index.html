@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v84</span>
+      <span class="text-amber-400 text-xs">v86</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -68,6 +68,7 @@
         </div>
         <div class="mt-2 h-2 bg-black/60 border border-slate-800 rounded overflow-hidden"><div id="sigbar" class="h-full" style="width:0%;background:#46e07d"></div></div>
         <div class="text-slate-500 text-[11px] mt-2 disp">CHARAKTER · Rauschen <span id="cnoise" class="text-slate-300"></span> · Artefakt <span id="cart" class="text-slate-300"></span> · Pfeifen <span id="chet" class="text-slate-300"></span></div>
+        <div class="text-slate-400 text-[11px] mt-2 leading-snug">HERKUNFT <span id="porigin" class="text-slate-300">—</span></div>
         <div class="text-slate-400 text-xs mt-1 truncate">TITEL <span id="ptitle" class="text-slate-200">—</span></div>
       </div>
       <div id="meters" class="mt-3"></div>
@@ -96,25 +97,40 @@ const POOL = {
 };
 
 const PRESETS=[
-  {id:"STN-01",freq:6075, band:"49 m",dist:"nah",      km:450,  q0:0.95,lp:3800,gain:1.00,noise:0.5,art:0.05,het:0.0,foreign:"voices", fadeDepth:0.22,seed:0.4,snIdx:2, ctl:{noise:14,fgLevel:45,breathe:20,lp:3800,crush:5,het:0}},
-  {id:"STN-02",freq:7245, band:"41 m",dist:"mittel",   km:1800, q0:0.80,lp:3200,gain:0.92,noise:0.8,art:0.40,het:0.1,foreign:"numbers",fadeDepth:0.40,seed:1.5,snIdx:1, ctl:{noise:30,fgLevel:50,breathe:40,lp:3200,crush:30,het:10}},
-  {id:"STN-03",freq:9420, band:"31 m",dist:"nah",      km:700,  q0:0.90,lp:3600,gain:0.95,noise:0.5,art:0.10,het:0.0,foreign:null,     fadeDepth:0.45,seed:2.6,snIdx:0, ctl:{noise:14,fgLevel:0,breathe:35,lp:3600,crush:10,het:0}},
-  {id:"STN-04",freq:11750,band:"25 m",dist:"fern",     km:6200, q0:0.50,lp:2200,gain:0.72,noise:1.4,art:0.70,het:0.0,foreign:"static", fadeDepth:0.70,seed:3.7,snIdx:3, ctl:{noise:55,fgLevel:55,breathe:60,lp:2200,crush:60,het:0}},
-  {id:"STN-05",freq:13710,band:"22 m",dist:"mittel",   km:2600, q0:0.70,lp:2800,gain:0.85,noise:0.9,art:0.45,het:1.0,foreign:"tones",  fadeDepth:0.50,seed:4.8,snIdx:4, ctl:{noise:35,fgLevel:50,breathe:45,lp:2800,crush:35,het:65}},
-  {id:"STN-06",freq:15580,band:"19 m",dist:"fern",     km:7400, q0:0.45,lp:2000,gain:0.66,noise:1.5,art:0.30,het:0.2,foreign:"voices", fadeDepth:0.82,seed:5.9,snIdx:6, ctl:{noise:60,fgLevel:55,breathe:75,lp:2000,crush:35,het:15}},
-  {id:"STN-07",freq:17790,band:"16 m",dist:"nah",      km:950,  q0:0.85,lp:3400,gain:0.95,noise:0.7,art:0.20,het:0.3,foreign:"websdr", fadeDepth:0.35,seed:6.1,snIdx:1, ctl:{noise:25,fgLevel:50,breathe:30,lp:3400,crush:20,het:20}},
-  {id:"STN-08",freq:21500,band:"13 m",dist:"sehr fern",km:12800,q0:0.34,lp:1700,gain:0.55,noise:1.8,art:0.40,het:0.2,foreign:"voices", fadeDepth:0.86,seed:7.2,snIdx:9, ctl:{noise:70,fgLevel:50,breathe:80,lp:1700,crush:40,het:15}},
-  {id:"STN-09",freq:5950, band:"49 m",dist:"nah",      km:300,  q0:0.93,lp:3700,gain:1.00,noise:0.4,art:0.05,het:0.0,foreign:null,     fadeDepth:0.28,seed:8.3,snIdx:0, ctl:{noise:12,fgLevel:0,breathe:25,lp:3700,crush:5,het:0}},
-  {id:"STN-10",freq:9650, band:"31 m",dist:"fern",     km:4100, q0:0.60,lp:2600,gain:0.78,noise:1.2,art:0.45,het:0.6,foreign:"numbers",fadeDepth:0.60,seed:9.4,snIdx:2, ctl:{noise:45,fgLevel:55,breathe:55,lp:2600,crush:40,het:40}}
+  {id:"STN-01",freq:6075, band:"49 m",dist:"nah",      km:450,  q0:0.95,lp:3800,gain:1.00,noise:0.5,art:0.05,het:0.0,foreign:"voices", fadeDepth:0.22,seed:0.4,snIdx:2, ctl:{noise:14,fgLevel:45,breathe:20,lp:3800,crush:5,het:0}, place:"Regionaler Rundfunk im Nachbarland, ~100 kW, Bodenwelle bei Nacht — kräftig und nah."},
+  {id:"STN-02",freq:7245, band:"41 m",dist:"mittel",   km:1800, q0:0.80,lp:3200,gain:0.92,noise:0.8,art:0.40,het:0.1,foreign:"numbers",fadeDepth:0.40,seed:1.5,snIdx:1, ctl:{noise:30,fgLevel:50,breathe:40,lp:3200,crush:30,het:10}, place:"Verdeckter Zahlensender auf 41 m, automatische Ansage, schmale einseitige Bandbreite."},
+  {id:"STN-03",freq:9420, band:"31 m",dist:"nah",      km:700,  q0:0.90,lp:3600,gain:0.95,noise:0.5,art:0.10,het:0.0,foreign:null,     fadeDepth:0.45,seed:2.6,snIdx:0, ctl:{noise:14,fgLevel:0,breathe:35,lp:3600,crush:10,het:0}, place:"Großer Auslandsdienst, 250 kW an Vorhangantenne, sauberer Tagespegel."},
+  {id:"STN-04",freq:11750,band:"25 m",dist:"fern",     km:6200, q0:0.50,lp:2200,gain:0.72,noise:1.4,art:0.70,het:0.0,foreign:"static", fadeDepth:0.70,seed:3.7,snIdx:3, ctl:{noise:55,fgLevel:55,breathe:60,lp:2200,crush:60,het:0}, place:"Tropensender hinter einer Gewitterfront — Static-Crashes überlagern den Träger."},
+  {id:"STN-05",freq:13710,band:"22 m",dist:"mittel",   km:2600, q0:0.70,lp:2800,gain:0.85,noise:0.9,art:0.45,het:1.0,foreign:"tones",  fadeDepth:0.50,seed:4.8,snIdx:4, ctl:{noise:35,fgLevel:50,breathe:45,lp:2800,crush:35,het:65}, place:"Utility-Bake auf 22 m, Dauerton, dazu ein zweiter Träger als Heterodyn-Pfeifen."},
+  {id:"STN-06",freq:15580,band:"19 m",dist:"fern",     km:7400, q0:0.45,lp:2000,gain:0.66,noise:1.5,art:0.30,het:0.2,foreign:"voices", fadeDepth:0.82,seed:5.9,snIdx:6, ctl:{noise:60,fgLevel:55,breathe:75,lp:2000,crush:35,het:15}, place:"Ferner Auslandsdienst über den Tag-Nacht-Terminator, Stimmen schwimmen im Fading."},
+  {id:"STN-07",freq:17790,band:"16 m",dist:"nah",      km:950,  q0:0.85,lp:3400,gain:0.95,noise:0.7,art:0.20,het:0.3,foreign:"websdr", fadeDepth:0.35,seed:6.1,snIdx:1, ctl:{noise:25,fgLevel:50,breathe:30,lp:3400,crush:20,het:20}, place:"WebSDR-Empfang an einer Großantenne, breites Band, ruhige Stimmen."},
+  {id:"STN-08",freq:21500,band:"13 m",dist:"sehr fern",km:12800,q0:0.34,lp:1700,gain:0.55,noise:1.8,art:0.40,het:0.2,foreign:"voices", fadeDepth:0.86,seed:7.2,snIdx:9, ctl:{noise:70,fgLevel:50,breathe:80,lp:1700,crush:40,het:15}, place:"Antipoden-Signal auf 13 m, nur bei offener Ionosphäre, am Rand der Hörbarkeit."},
+  {id:"STN-09",freq:5950, band:"49 m",dist:"nah",      km:300,  q0:0.93,lp:3700,gain:1.00,noise:0.4,art:0.05,het:0.0,foreign:null,     fadeDepth:0.28,seed:8.3,snIdx:0, ctl:{noise:12,fgLevel:0,breathe:25,lp:3700,crush:5,het:0}, place:"Lokaler Sender im 49-m-Band, fast Ortsempfang, dichter klarer Träger."},
+  {id:"STN-10",freq:9650, band:"31 m",dist:"fern",     km:4100, q0:0.60,lp:2600,gain:0.78,noise:1.2,art:0.45,het:0.6,foreign:"numbers",fadeDepth:0.60,seed:9.4,snIdx:2, ctl:{noise:45,fgLevel:55,breathe:55,lp:2600,crush:40,het:40}, place:"Zahlensender über mehrere Sprünge, Ziffern tauchen aus dem Schwund auf."},
+  {id:"STN-11",freq:4885, band:"60 m",dist:"mittel",   km:1500, q0:0.72,lp:2900,gain:0.86,noise:0.9,art:0.30,het:0.1,foreign:"voices", fadeDepth:0.55,seed:10.5,snIdx:3, fadeMode:"sea", ctl:{noise:32,fgLevel:45,breathe:60,lp:2900,crush:20,het:5}, place:"Kleine Küstenfunkstelle auf einer Ägäis-Insel, Bodenwelle über See; Salzluft dämpft die Höhen, der Pegel schwingt mit der Dünung."},
+  {id:"STN-12",freq:3290, band:"90 m",dist:"sehr fern",km:14500,q0:0.30,lp:1600,gain:0.50,noise:1.9,art:0.30,het:0.3,foreign:"static", fadeDepth:0.88,seed:11.6,snIdx:0, ctl:{noise:72,fgLevel:40,breathe:82,lp:1600,crush:30,het:20}, place:"Relais einer Antarktis-Forschungsstation, schwacher Sender in die Polarnacht; in der Aurora-Absorption bleibt fast nur Rauschen mit vereinzelten Baken-Tönen."},
+  {id:"STN-13",freq:11620,band:"25 m",dist:"fern",     km:5800, q0:0.45,lp:2300,gain:0.70,noise:1.6,art:0.65,het:0.0,foreign:"static", fadeDepth:0.68,seed:12.7,snIdx:4, ctl:{noise:58,fgLevel:60,breathe:55,lp:2300,crush:55,het:0}, place:"Tropensender nahe dem Äquator, der Träger kämpft gegen das QRN der Gewitterzellen; Static-Crashes drücken ihn weg."},
+  {id:"STN-14",freq:8300, band:"Seefunk",dist:"fern",  km:5200, q0:0.50,lp:2600,gain:0.74,noise:1.2,art:0.35,het:0.1,foreign:"voices", fadeDepth:0.72,seed:13.8,snIdx:5, fadeMode:"sea", ctl:{noise:48,fgLevel:50,breathe:70,lp:2600,crush:30,het:5}, place:"Frachtschiff im Nordatlantik, Seefunk um 8 MHz; der Trägerpegel atmet mit dem Seegang, dazwischen knapper Sprechfunk."},
+  {id:"STN-15",freq:15480,band:"19 m",dist:"fern",     km:6900, q0:0.55,lp:2700,gain:0.78,noise:1.0,art:0.30,het:0.1,foreign:"voices", fadeDepth:0.62,seed:14.9,snIdx:7, ctl:{noise:42,fgLevel:50,breathe:55,lp:2700,crush:25,het:5}, place:"Auslandsdienst über die Sahara, trockene Luft und lange Tag-Ausbreitung; klarer, aber dünner Pegel mit ferner Sprache."},
+  {id:"STN-16",freq:7385, band:"41 m",dist:"mittel",   km:1200, q0:0.72,lp:3000,gain:0.88,noise:0.9,art:0.45,het:0.2,foreign:"voices", fadeDepth:0.50,seed:15.1,snIdx:12, foreign2:"tones",snIdx2:0, ctl:{noise:30,fgLevel:55,breathe:45,lp:3000,crush:35,het:10}, place:"Pirat aus einem Alpental, improvisierter Dipol zwischen den Hängen; schwankt, und ein zweiter Sender funkt knapp daneben."},
+  {id:"STN-17",freq:17600,band:"16 m",dist:"fern",     km:8200, q0:0.42,lp:2200,gain:0.66,noise:1.4,art:0.40,het:0.4,foreign:"voices", fadeDepth:0.78,seed:16.2,snIdx:4, drift:true, ctl:{noise:55,fgLevel:50,breathe:72,lp:2200,crush:35,het:35}, place:"Signal über die Polarroute, die Aurora flattert den Träger; die Höhen zittern, ein wanderndes Pfeifen driftet mit."},
+  {id:"STN-18",freq:13800,band:"22 m",dist:"fern",     km:6000, q0:0.50,lp:2500,gain:0.70,noise:1.1,art:0.40,het:1.0,foreign:"tones",  fadeDepth:0.60,seed:17.3,snIdx:2, drift:true, ctl:{noise:45,fgLevel:55,breathe:55,lp:2500,crush:30,het:75}, place:"Zwei Sender teilen sich knapp eine Frequenz; die Träger schweben gegeneinander, ein instabiles Heterodyn pfeift."},
+  {id:"STN-19",freq:9330, band:"31 m",dist:"sehr fern",km:9000, q0:0.33,lp:1900,gain:0.55,noise:1.6,art:0.35,het:0.2,foreign:"numbers",fadeDepth:0.85,seed:18.4,snIdx:0, ctl:{noise:62,fgLevel:55,breathe:80,lp:1900,crush:35,het:15}, place:"Klandestiner Zahlensender, schwacher Träger aus dem Nichts; monotone Ziffernfolgen tauchen kurz auf und versinken wieder."},
+  {id:"STN-20",freq:3975, band:"75 m",dist:"nah",      km:600,  q0:0.90,lp:3500,gain:0.98,noise:0.4,art:0.05,het:0.0,foreign:"voices", fadeDepth:0.30,seed:19.5,snIdx:13, ctl:{noise:14,fgLevel:35,breathe:25,lp:3500,crush:5,het:0}, place:"Kleiner konfessioneller Sender, geringe Leistung, ruhige Sprache; nachts im 75-m-Band fast störungsfrei."},
+  {id:"STN-21",freq:6210, band:"49 m",dist:"mittel",   km:1600, q0:0.70,lp:3100,gain:0.90,noise:1.0,art:0.35,het:0.2,foreign:"voices", fadeDepth:0.50,seed:20.6,snIdx:0, foreign2:"voices",snIdx2:5, ctl:{noise:35,fgLevel:60,breathe:45,lp:3100,crush:25,het:10}, place:"Dicht belegtes Band über einer Hafenstadt; mehrere Stimmen drängeln sich, Nachbarkanäle bluten herein."},
+  {id:"STN-22",freq:15350,band:"19 m",dist:"fern",     km:7000, q0:0.45,lp:2400,gain:0.70,noise:1.3,art:0.40,het:0.2,foreign:"static", fadeDepth:0.62,seed:21.7,snIdx:3, sweep:true, ctl:{noise:50,fgLevel:55,breathe:55,lp:2400,crush:35,het:15}, place:"Über-Horizont-Radar zieht periodisch durchs Band; ein Sweep-Brummen wischt über den schwachen Träger."},
+  {id:"STN-23",freq:9540, band:"31 m",dist:"fern",     km:5000, q0:0.55,lp:2700,gain:0.78,noise:1.1,art:0.30,het:0.1,foreign:"voices", fadeDepth:0.60,seed:22.8,snIdx:1, ctl:{noise:44,fgLevel:50,breathe:55,lp:2700,crush:25,het:5}, place:"Regionaldienst aus der zentralasiatischen Steppe, weite Bodenfläche, einsamer Träger mit fremder Sprache."},
+  {id:"STN-24",freq:17715,band:"16 m",dist:"sehr fern",km:13500,q0:0.32,lp:1800,gain:0.55,noise:1.5,art:0.30,het:0.5,foreign:"tones",  fadeDepth:0.86,seed:23.9,snIdx:1, fadeMode:"sea", ctl:{noise:60,fgLevel:45,breathe:80,lp:1800,crush:30,het:40}, place:"Automatische Bake auf einem Pazifik-Atoll, solarbetrieben; nur ein Piepmuster, das mit der Welle kommt und geht."}
 ];
 function presetSnippet(p){ const pool=POOL[p.foreign]; return (pool&&pool.length)? pool[p.snIdx%pool.length] : null; }
 function isRescue(p){ return p.dist==="fern"||p.dist==="sehr fern"; }
 
 function tanhCurve(k){ const n=1024,c=new Float32Array(n); for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(k*x);} return c; }
 function fade01(t,seed){ const v=0.5+0.5*(0.6*Math.sin(t*0.20+seed)+0.4*Math.sin(t*0.082+seed*1.7+1.3)); return v<0?0:(v>1?1:v); }
+function fadeSea(t,seed){ const v=0.5+0.5*(0.5*Math.sin(t*0.06+seed)+0.3*Math.sin(t*0.017+seed*2.1)+0.2*Math.sin(t*0.105+seed*0.6)); return v<0?0:(v>1?1:v); } // langsamer, unregelmäßiger Wellen-Schwund
 function makeIR(ctx,sec,decay){ const r=ctx.sampleRate,len=Math.max(1,sec*r|0),b=ctx.createBuffer(1,len,r),d=b.getChannelData(0); for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay); return b; }
 function dots(n){ n=Math.max(0,Math.min(3,Math.round(n))); return "●●●".slice(0,n)+"○○○".slice(0,3-n); }
-function crushCurve(amt){ const n=2048,c=new Float32Array(n); if(amt<=0.001){ for(let i=0;i<n;i++) c[i]=(i/(n-1))*2-1; return c; } const levels=Math.max(2,Math.round(2+(1-amt)*30)); for(let i=0;i<n;i++){ const x=(i/(n-1))*2-1; c[i]=Math.round(x*levels)/levels; } return c; }
+function crushCurve(amt){ const n=2048,c=new Float32Array(n); if(amt<=0.001){ for(let i=0;i<n;i++) c[i]=(i/(n-1))*2-1; return c; } const levels=Math.max(2,Math.round(3+(1-amt)*13)); for(let i=0;i<n;i++){ const x=(i/(n-1))*2-1; c[i]=Math.round(x*levels)/levels; } return c; }
 function setTitle(t){ const e=document.getElementById("ptitle"); if(e) e.textContent=(t&&t.trim())?t.trim():"—"; }
 function readID3(buf){
   try{
@@ -190,7 +206,7 @@ function ensure(){
   const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=P.lp;
   const pkf=ctx.createBiquadFilter(); pkf.type="peaking"; pkf.frequency.value=1700; pkf.Q.value=1.1; pkf.gain.value=4.5;
   const shaper=ctx.createWaveShaper(); shaper.curve=tanhCurve(1.4); shaper.oversample="2x";
-  const crushShaper=ctx.createWaveShaper(); crushShaper.curve=crushCurve(0); crushShaper.oversample="2x";
+  const crushShaper=ctx.createWaveShaper(); crushShaper.curve=crushCurve(0); crushShaper.oversample="none";
   const crushWet=ctx.createGain(); crushWet.gain.value=1; const crushDry=ctx.createGain(); crushDry.gain.value=0;
   const agc=ctx.createDynamicsCompressor(); agc.threshold.value=-28; agc.ratio.value=4; agc.attack.value=.05; agc.release.value=.4;
   // RETTUNG-Stufe (am Ende der Empfänger-Kette, VOR dem Raum)
@@ -251,7 +267,9 @@ function ensure(){
   songGain.connect(bus);
   const hetOsc=ctx.createOscillator(); hetOsc.type="sine"; hetOsc.frequency.value=700;
   const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(bus); hetOsc.start();
-  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,lim,mix,conv,revWet,del,delWet,safeBell,mHP,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,out,noiseGain,noiseFilt,songGain,hetOsc,hetGain,fg:null,fgSrc:null,songBuf:null,songSrc:null,bufs:{}});
+  const sweepOsc=ctx.createOscillator(); sweepOsc.type="sawtooth"; sweepOsc.frequency.value=800;
+  const sweepGain=ctx.createGain(); sweepGain.gain.value=0; sweepOsc.connect(sweepGain); sweepGain.connect(bus); sweepOsc.start();
+  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,lim,mix,conv,revWet,del,delWet,safeBell,mHP,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,out,noiseGain,noiseFilt,songGain,hetOsc,hetGain,sweepOsc,sweepGain,fg:null,fgSrc:null,fg2:null,fgSrc2:null,songBuf:null,songSrc:null,bufs:{}});
   applyControls(); startForeign();
   return A;
 }
@@ -277,16 +295,27 @@ function applyControls(){
 
 function loadAudio(name,cb){ if(!A.ctx||A.bufs[name]) return cb&&cb(); fetch("audio/"+name).then(r=>{if(!r.ok)throw 0;return r.arrayBuffer();}).then(b=>A.ctx.decodeAudioData(b)).then(buf=>{A.bufs[name]=buf; cb&&cb();}).catch(()=>{}); }
 function startForeign(){
-  if(!A.ctx||!cur||!cur.foreign) return;
-  const name=presetSnippet(cur); if(!name) return;
-  if(!A.bufs[name]){ loadAudio(name,startForeign); return; }
-  if(A.fgSrc) return;
-  const g=A.ctx.createGain(); g.gain.value=0; g.connect(A.bus);
-  const s=A.ctx.createBufferSource(); s.buffer=A.bufs[name]; s.loop=true; s.connect(g);
-  try{ s.start(0,Math.random()*A.bufs[name].duration); }catch(e){}
-  A.fgSrc=s; A.fg=g;
+  if(!A.ctx||!cur) return;
+  if(cur.foreign && !A.fgSrc){
+    const name=presetSnippet(cur);
+    if(name){ if(!A.bufs[name]){ loadAudio(name,startForeign); } else {
+      const g=A.ctx.createGain(); g.gain.value=0; g.connect(A.bus);
+      const s=A.ctx.createBufferSource(); s.buffer=A.bufs[name]; s.loop=true; s.connect(g);
+      try{ s.start(0,Math.random()*A.bufs[name].duration); }catch(e){}
+      A.fgSrc=s; A.fg=g;
+    } }
+  }
+  if(cur.foreign2 && !A.fgSrc2){
+    const pool=POOL[cur.foreign2]; const name2=pool&&pool.length?pool[(cur.snIdx2||0)%pool.length]:null;
+    if(name2){ if(!A.bufs[name2]){ loadAudio(name2,startForeign); } else {
+      const g2=A.ctx.createGain(); g2.gain.value=0; g2.connect(A.bus);
+      const s2=A.ctx.createBufferSource(); s2.buffer=A.bufs[name2]; s2.loop=true; s2.connect(g2);
+      try{ s2.start(0,Math.random()*A.bufs[name2].duration); }catch(e){}
+      A.fgSrc2=s2; A.fg2=g2;
+    } }
+  }
 }
-function stopForeign(){ if(A.fgSrc){try{A.fgSrc.stop();}catch(e){}} if(A.fg){try{A.fg.disconnect();}catch(e){}} A.fgSrc=null; A.fg=null; }
+function stopForeign(){ if(A.fgSrc){try{A.fgSrc.stop();}catch(e){}} if(A.fg){try{A.fg.disconnect();}catch(e){}} A.fgSrc=null; A.fg=null; if(A.fgSrc2){try{A.fgSrc2.stop();}catch(e){}} if(A.fg2){try{A.fg2.disconnect();}catch(e){}} A.fgSrc2=null; A.fg2=null; }
 
 function loadPreset(i){ idx=(i+PRESETS.length)%PRESETS.length; cur=PRESETS[idx]; stopForeign(); renderReadout(); if(A.ctx) startForeign(); applyPreset(); updateRescueUI(); }
 function renderReadout(){
@@ -295,6 +324,7 @@ function renderReadout(){
   $("pfreq").textContent=cur.freq; $("pband").textContent=cur.band;
   $("pdist").textContent=cur.dist; $("pkm").textContent=cur.km;
   $("cnoise").textContent=dots(cur.noise*1.6); $("cart").textContent=dots(cur.art*3); $("chet").textContent=dots(cur.het*3);
+  $("porigin").textContent=cur.place||"—";
 }
 function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" · "+Math.round(5+q*32)+" dB"; $("sigbar").style.width=Math.round(Math.max(0,Math.min(1,q))*100)+"%"; }
 
@@ -311,10 +341,12 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const m=parseInt(cur.band)||25, nf=Math.max(-1,Math.min(1,(m-31)/18));
     let prop=night?(1+nf*0.45):(1-nf*0.45); prop=Math.max(0.3,Math.min(1.4,prop));
     const effDepth=Math.max(0,Math.min(0.95, cur.fadeDepth*(P.breathe/50)));
-    const fade=(1-effDepth)+effDepth*fade01(T,cur.seed);
+    const fadeFn=cur.fadeMode==="sea"?fadeSea:fade01;
+    const fade=(1-effDepth)+effDepth*fadeFn(T,cur.seed);
     const q=Math.min(1,cur.q0*prop)*fade;
     let fgLvl=0;
     if(A.fg){ const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55); fgLvl=cur.foreign? gate*(P.fgLevel/100)*0.9*duckF:0; A.fg.gain.setTargetAtTime(fgLvl,now,.08); }
+    if(A.fg2){ const gate2=Math.max(0,(fade01(T,cur.seed+9)-0.5)/0.5); A.fg2.gain.setTargetAtTime(cur.foreign2? gate2*(P.fgLevel/100)*0.6*duckF:0,now,.1); }
     intfActive=fgLvl;
     let songLvl=q*cur.gain*breath.v; songLvl=Math.max(0.04,songLvl);
     // an Verzerrung & Co. gekoppelt: hoher Drive -> Lied wird leise & flattert, manchmal kurz weg (kein festes Pausenmuster)
@@ -330,7 +362,11 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     A.lp.frequency.setTargetAtTime(900+q*(lpc-900),now,.04);
     A.shaper.curve=tanhCurve(1.4+cur.art*(0.6+(1-fade)*0.8)*1.2*clean);
     A.hetGain.gain.setTargetAtTime((P.het/1000)*cur.het*(0.5+(1-fade))*0.5*clean,now,.05);
-    A.hetOsc.frequency.setTargetAtTime(500+cur.q0*1400,now,.1);
+    const hetF=cur.drift ? 600+320*Math.sin(T*0.07+cur.seed)+130*Math.sin(T*0.23+cur.seed*1.3) : 500+cur.q0*1400; // driftendes Pfeifen
+    A.hetOsc.frequency.setTargetAtTime(hetF,now,.1);
+    if(A.sweepGain){ // Sweep-Störer zieht periodisch durchs Band
+      if(cur.sweep){ const ph=(T*0.09+cur.seed)%1, sf=350+ph*ph*4200; A.sweepOsc.frequency.setTargetAtTime(sf,now,.04); A.sweepGain.gain.setTargetAtTime(0.014*(0.4+P.fgLevel/100)*duckF,now,.1); }
+      else A.sweepGain.gain.setTargetAtTime(0,now,.1); }
     if(frames++%6===0){ updateMeters(q,songLvl,noiseLvl,fgLvl); updateSNR(q); }
   }
   requestAnimationFrame(frame);
