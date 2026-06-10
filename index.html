@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v83</span>
+      <span class="text-amber-400 text-xs">v84</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -323,7 +323,7 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const wob=Math.pow(f1*0.55+f2*0.45, 1+drive*1.8);
     const flut=1-drive*(1-wob);
     songLvl*=(1-drive*0.35)*flut;
-    A.songGain.gain.setTargetAtTime(A.songBuf?songLvl:0,now,.008);
+    A.songGain.gain.setTargetAtTime((A.songBuf||streamMode)?songLvl:0,now,.008);
     const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*duckF*0.5;
     A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.06);
     const lpc=Math.max(700,Math.min(6000, cur.lp*(P.lp/3785)));
