@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · PRESET-Modus (v90).
+  Weltempfänger – Werkbank SW · PRESET-Modus (v92).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v90</span>
+      <span class="text-amber-400 text-xs">v92</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -38,8 +38,9 @@
         <input id="file" type="file" accept="audio/*" class="hidden">
       </label>
       <button id="play" class="px-4 py-2 rounded border border-emerald-600 text-emerald-400 hover:bg-emerald-950">▶ PLAY</button>
-      <button id="btnRecMix" title="Nimmt die Ausgabe auf, wie sie klingt — mit Rauschen, Fremdsignal, allem. Der Fund." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">● MITSCHNITT</button>
-      <button id="btnRecExt" title="Zieht nur das musikalische Material in seiner aktuellen Form heraus — Rauschen, Fremdsignal, Pfeifen und Knackser sind während der Aufnahme stumm. Das Skelett, egal wie es klingt." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">◉ EXTRAKT</button>
+      <button id="btnRecMix" title="Nimmt den vollen Empfang auf, wie er klingt — mit Rauschen, Fremdsignal, allem. Der Fund." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">● MITSCHNITT</button>
+      <button id="btnExt" title="Isolation: zieht nur das melodische Material in seiner aktuellen Form heraus — Stör-Quellen ganz stumm, nichts komprimiert. Erster Druck: hören (läuft schon mit). Zweiter Druck: speichern." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">◉ EXTRAKT</button>
+      <button id="btnExtX" class="hidden px-2 py-2 rounded border border-slate-700 text-xs text-slate-500 hover:border-red-400 hover:text-red-400" title="Extrakt-Modus beenden ohne zu speichern.">✕ verwerfen</button>
       <span id="status" class="text-slate-400 text-xs ml-2">kein Lied geladen</span>
       <div class="mt-2 flex gap-2">
         <input id="streamUrl" type="text" placeholder="Webradio-Stream-URL (https://…)" class="flex-1 bg-black/40 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
@@ -347,10 +348,9 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const now=A.ctx.currentTime, T=now, nr=isRescue(cur)?P.nr/100:0;
     curNr=nr;
     const cr=P.crush/100;
-    const clean=1-nr;                                     // Rettung: bei Anschlag bleibt nur das musikalische Skelett
+    const clean=1-nr*0.8;                                 // Rettung = Grundreinigung: senkt Stoer-Quellen bis auf 20%-Rest, nie ganz weg
     const crushDuck=Math.pow(1-cr*0.7,1.2);               // Verzerrung schiebt Stör/Rausch reziprok runter
     const duckF=clean*crushDuck; curDuck=duckF;            // gemeinsamer Absenk-Faktor
-    A.crushWet.gain.setTargetAtTime(1-nr,now,.05); A.crushDry.gain.setTargetAtTime(nr,now,.05); // Rettung blendet auch die Verzerrung aus — Restauration
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.92+Math.random()*0.10; }
     const m=parseInt(cur.band)||25, nf=Math.max(-1,Math.min(1,(m-31)/18));
     let prop=night?(1+nf*0.45):(1-nf*0.45); prop=Math.max(0.3,Math.min(1.4,prop));
@@ -453,7 +453,7 @@ const sl=[
   ["crush","Verzerrung",0,100,"Übersteuerung & Demodulator-Verzerrung des Empfangs — wie ein überfahrener AM-Detektor bei schwachem Träger."],
   ["het","Pfeifen",0,100,"Heterodyn-Pfeifton benachbarter Träger (Zero-Beat)."],
   "RETTUNG",
-  ["nr","Rettung",0,100,"Holt das fast verlorene, fragile Signal hörbar nach vorne — nur lauter, nichts Verlorenes zurückgeholt; Störendes weicht reziprok bis auf null — Restauration des musikalischen Skeletts. Nur bei fernen Stationen."],
+  ["nr","Rettung",0,100,"Grundreinigung: hebt das fragile Signal nach vorn — nur lauter, nichts Verlorenes zurückgeholt. Störendes weicht bis auf einen Rest, die Deformation des Signals bleibt. Nur bei fernen Stationen."],
   "RAUM",
   ["reverb","Hall",0,100,"Räumlicher Nachhall — verklebt das verletzte Signal, erzeugt Distanz."],
   ["delay","Echo",0,100,"Verzögerte Wiederholungen mit Rückkopplung."],
@@ -476,33 +476,38 @@ sl.forEach(item=>{
 updateRescueUI();
 applyPreset();
 
-// ===== Aufnahme: MITSCHNITT (alles) & EXTRAKT (nur Musik-Pfad) — v90 =====
+// ===== MITSCHNITT (voller Empfang) & EXTRAKT (hoeren -> speichern/verwerfen) — v92 =====
+let recDiscard=false;
 function fmtT(ms){ const sec=Math.floor(ms/1000); return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0"); }
 function recName(kind,ext){ const d=new Date(),p=n=>String(n).padStart(2,"0"); return cur.id+"_"+kind+"_"+d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+"."+ext; }
 function startRec(kind){
-  ensure(); A.ctx.resume(); if(rec){ const same=(recKind===kind); stopRec(); if(same) return; }
-  extractMode=(kind==="extrakt");
+  ensure(); A.ctx.resume(); if(rec) return;
   const mt=(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported("audio/webm"))?"audio/webm":"";
   const ext=mt?"webm":"m4a";
   const chunks=[];
   try{ rec=mt?new MediaRecorder(A.recDest.stream,{mimeType:mt}):new MediaRecorder(A.recDest.stream); }
-  catch(e){ setStatus("Aufnahme nicht unterstützt"); extractMode=false; rec=null; return; }
+  catch(e){ setStatus("Aufnahme nicht unterstützt"); rec=null; extractMode=false; updateRecUI(); return; }
   rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
-  rec.onstop=()=>{ const blob=new Blob(chunks,{type:mt||"audio/mp4"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=recName(kind,ext); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); };
+  rec.onstop=()=>{ if(!recDiscard){ const blob=new Blob(chunks,{type:mt||"audio/mp4"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=recName(kind,ext); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); } recDiscard=false; };
   rec.start(250); recKind=kind; recT0=Date.now();
   recTimer=setInterval(updateRecUI,250); updateRecUI();
 }
-function stopRec(){ if(!rec) return; try{rec.stop();}catch(e){} rec=null; recKind=null; extractMode=false; clearInterval(recTimer); recTimer=null; updateRecUI(); }
+function stopRec(discard){ if(!rec) return; recDiscard=!!discard; try{rec.stop();}catch(e){} rec=null; recKind=null; clearInterval(recTimer); recTimer=null; updateRecUI(); }
 function updateRecUI(){
-  const bm=$("btnRecMix"), be=$("btnRecExt"); if(!bm||!be) return;
-  const base="px-3 py-2 rounded border text-xs ", on="border-red-500 text-red-400", off="text-slate-400 border-slate-700 hover:border-amber-400 hover:text-amber-300";
-  bm.className=base+(recKind==="mitschnitt"?on:off);
-  be.className=base+(recKind==="extrakt"?on:off);
-  bm.textContent=recKind==="mitschnitt"?"■ STOPP · "+fmtT(Date.now()-recT0):"● MITSCHNITT";
-  be.textContent=recKind==="extrakt"?"■ STOPP · "+fmtT(Date.now()-recT0):"◉ EXTRAKT";
+  const bm=$("btnRecMix"), be=$("btnExt"), bx=$("btnExtX"); if(!bm||!be||!bx) return;
+  const base="px-3 py-2 rounded border text-xs ";
+  const mixOn=(rec&&recKind==="mitschnitt");
+  bm.className=base+(mixOn?"border-red-500 text-red-400":"text-slate-400 border-slate-700 hover:border-amber-400 hover:text-amber-300");
+  bm.textContent=mixOn?"■ STOPP · "+fmtT(Date.now()-recT0):"● MITSCHNITT";
+  bm.disabled=extractMode; bm.style.opacity=extractMode?"0.4":"1";
+  be.className=base+(extractMode?"border-amber-400 text-amber-300":"text-slate-400 border-slate-700 hover:border-amber-400 hover:text-amber-300");
+  be.textContent=extractMode?"■ SPEICHERN · "+fmtT(Date.now()-recT0):"◉ EXTRAKT";
+  be.disabled=mixOn; be.style.opacity=mixOn?"0.4":"1";
+  bx.classList.toggle("hidden",!extractMode);
 }
-$("btnRecMix").addEventListener("click",()=>{ recKind==="mitschnitt"?stopRec():startRec("mitschnitt"); });
-$("btnRecExt").addEventListener("click",()=>{ recKind==="extrakt"?stopRec():startRec("extrakt"); });
+$("btnRecMix").addEventListener("click",()=>{ if(extractMode) return; (rec&&recKind==="mitschnitt")?stopRec(false):startRec("mitschnitt"); });
+$("btnExt").addEventListener("click",()=>{ if(rec&&recKind==="mitschnitt") return; if(!extractMode){ extractMode=true; startRec("extrakt"); } else { stopRec(false); extractMode=false; updateRecUI(); } });
+$("btnExtX").addEventListener("click",()=>{ if(!extractMode) return; stopRec(true); extractMode=false; updateRecUI(); });
 function btnCls(active){ return "px-3 py-2 rounded border text-xs "+(active?"border-emerald-500 text-emerald-300":"border-slate-700 text-slate-400"); }
 function setMaster(on){ masterOn=on; if(A.ctx){ const t=A.ctx.currentTime; A.mOn.gain.setTargetAtTime(on?1:0,t,.03); A.mOff.gain.setTargetAtTime(on?0:1,t,.03);} const b=$("btnMaster"); b.textContent=on?"MASTER AN":"MASTER AUS"; b.className=btnCls(on); }
 
