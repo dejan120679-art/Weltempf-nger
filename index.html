@@ -498,6 +498,11 @@ function audioTick(){
   }
   // v97 F13: Stoer-Quellen-Gains ohne xm; Stummschaltung an stoerMute
   if(A.stoerMute) A.stoerMute.gain.setTargetAtTime(xm,now,.04);
+  // v98 Fix: Stoer-Eingaenge von Hall/Echo respektieren Extrakt-Stummschaltung (Grain bleibt bewusst ungefiltert)
+  const revStoerBase = revSrcMode==="MUSIK"?0 : revSrcMode==="STOER"?1 : 0.75;
+  const delStoerBase = delSrcMode==="MUSIK"?0 : delSrcMode==="STOER"?1 : 0.75;
+  if(A.revInStoer) A.revInStoer.gain.setTargetAtTime(revStoerBase*xm,now,.06);
+  if(A.delInStoer) A.delInStoer.gain.setTargetAtTime(delStoerBase*xm,now,.06);
   if(A.fg)  A.fg.gain.setTargetAtTime(fgBase,now,.08);
   if(A.fg2) A.fg2.gain.setTargetAtTime(fg2Base,now,.1);
   A.songGain.gain.setTargetAtTime((A.songBuf||streamMode)?songLvl*aud:0,now,extractMode?.015:.008);
