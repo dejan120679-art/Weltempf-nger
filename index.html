@@ -203,7 +203,7 @@ async function startIcy(url){
   }catch(e){}
 }
 
-const P={noise:30,fgLevel:55,breathe:50,lp:3785,crush:0,het:60,nr:0,reverb:0,delay:0,wow:0,grain:0,vol:85,drywet:100,warm:0,extGate:33,extThr:30}; // v98: warm + Extrakt-Justage
+const P={noise:30,fgLevel:55,breathe:50,lp:3785,crush:0,het:60,nr:0,reverb:0,delay:0,wow:0,grain:0,vol:85,drywet:100,warm:0,extGate:33,extThr:30,extSelf:25}; // v98: warm + Extrakt-Justage; v99: Selbstmaskierungs-Regler
 let masterOn=false; // v97: Master default AUS
 const A={};
 let idx=0, cur=PRESETS[0], curR=null;
@@ -481,12 +481,15 @@ function audioTick(){
   if(extractMode){
     const s0  = 0.2 + (P.extGate||0)/100 * 1.0;
     const tAbs= 0.004 + (P.extThr||0)/100 * 0.028;
+    const selfM = (P.extSelf||0)/100 * 0.6; // v99 Fix: Selbstmaskierung verstellbar (TEMPORAER, Startwert nach Gehoer)
     const masker = noiseBase + (fgBase+fg2Base)*0.8 + hetBase*0.4
-                 + songLvl*(cr*0.55 + drive*0.25) // Verzerrungs-Selbstmaskierung
+                 + songLvl*(cr + drive)*selfM // v99: justierbarer Beitrag aus Verzerrung+Drive
                  + tAbs;
     const snr=songLvl/masker;
     aud=Math.max(0,Math.min(1,(snr-s0)/1.5));
     aud*=Math.max(0,Math.min(1,(songLvl-tAbs)/(tAbs*3.3)));
+    // v99 Fix: Sicherheitsnetz gegen Total-Stille — solange ueberhaupt Signal da ist, bleibt ein Hauch Skelett
+    aud=Math.max(aud, 0.12*Math.max(0,Math.min(1,(snr-0.25)/0.5)));
   }
   // v97 F13: Stoer-Quellen-Gains ohne xm; Stummschaltung an stoerMute
   if(A.stoerMute) A.stoerMute.gain.setTargetAtTime(xm,now,.04);
@@ -731,7 +734,8 @@ const sl=[
   ["drywet","Dry / Wet",0,100,"Öffnet den Empfang als durchgehenden Verlauf: das Original wächst von innen heraus mit — erst unhörbar verschmolzen, dann klarer, am Anschlag frei."],
   "EXTRAKT-JUSTAGE",
   ["extGate","Gate-Schwelle",0,100,"TEMPORÄR — Werkbank-Regler zur Justage des Extrakt-Gates. Nach Erhören werden die Endwerte fest eingebaut und dieser Regler verschwindet."],
-  ["extThr","Hörschwelle",0,100,"TEMPORÄR — Werkbank-Regler für die absolute Hörschwelle im Extrakt-Modus. Nach Erhören Endwerte fest, Regler entfernt."]
+  ["extThr","Hörschwelle",0,100,"TEMPORÄR — Werkbank-Regler für die absolute Hörschwelle im Extrakt-Modus. Nach Erhören Endwerte fest, Regler entfernt."],
+  ["extSelf","Selbstmaskierung",0,100,"TEMPORÄR — Werkbank-Regler für die Verzerrungs-Selbstmaskierung (cr+drive). Bei 0 kein Beitrag, voll = starke Eigenmaskierung. Nach Erhören Endwerte fest, Regler entfernt."]
 ];
 sl.forEach(item=>{
   if(typeof item==="string"){ const h=document.createElement("div"); h.className="text-[10px] tracking-widest text-emerald-500/70 mt-3 mb-1"; h.textContent=item; $("sliders").appendChild(h); return; }
