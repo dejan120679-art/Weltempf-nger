@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · PRESET-Modus (v99).
+  Weltempfänger – Werkbank SW · TUNING-Modus (v100).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v99</span>
+      <span class="text-amber-400 text-xs">v100</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -55,15 +55,20 @@
       <div class="flex justify-end mb-2">
         <button id="daynight" title="Ionosphäre: nachts tragen tiefe Bänder weit und das Band füllt sich — mehr Stimmen, mehr Träger. Tags ist es leerer." class="px-2 py-1 text-xs rounded border border-amber-400 text-amber-300">☀ TAG</button>
       </div>
-      <div class="flex items-center justify-between mb-3">
-        <button id="prev" class="px-3 py-2 rounded border border-slate-700 hover:border-emerald-400 hover:text-emerald-400">◄</button>
-        <div class="text-center">
-          <div class="text-[10px] tracking-widest text-slate-500">STATION</div>
-          <div class="text-slate-300 disp"><span id="pid">—</span> · <span id="pidx">—</span></div>
+      <div class="flex flex-col gap-2 mb-3">
+        <div class="flex items-center gap-1 flex-wrap">
+          <button id="bandSW1" class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-300 hover:border-amber-400 hover:text-amber-300">SW1</button>
+          <button id="bandSW2" class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-300 hover:border-amber-400 hover:text-amber-300">SW2</button>
+          <button id="bandSW3" class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-300 hover:border-amber-400 hover:text-amber-300">SW3</button>
+          <button id="bandSW4" class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-300 hover:border-amber-400 hover:text-amber-300">SW4</button>
+          <button id="bandFM" disabled title="FM — später" class="px-3 py-2 rounded border border-slate-800 text-xs text-slate-600 opacity-50 cursor-not-allowed">FM</button>
+          <button id="btnScan" title="Sucht aufwärts (wrap im Band) zur nächsten Station mit Potenzial. Animiert über ~1.5 s." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">⇄ SCAN</button>
+          <div class="ml-3 text-[10px] tracking-widest text-slate-500">STATION</div>
+          <div class="text-slate-300 disp"><span id="pid">—</span> · <span id="pidx">—</span> · <span id="prxDisp" class="text-emerald-400">—</span></div>
         </div>
-        <div class="flex gap-1">
-          <button id="next" class="px-3 py-2 rounded border border-slate-700 hover:border-emerald-400 hover:text-emerald-400">►</button>
-          <button id="btnScan" title="Zufällige andere Station." class="px-3 py-2 rounded border border-slate-700 text-xs hover:border-amber-400 hover:text-amber-300">⇄ SCAN</button>
+        <div class="flex items-center gap-2">
+          <input id="tuneSlider" type="range" min="5200" max="10000" step="1" value="6075" class="flex-1" title="">
+          <span class="text-amber-400 disp text-base"><span id="tuneDisp">6075</span> kHz</span>
         </div>
       </div>
       <div class="rounded-md bg-black/60 border border-slate-800 px-4 py-3">
@@ -133,6 +138,64 @@ const PRESETS=[
 ];
 function presetSnippet(p){ const pool=POOL[p.foreign]; return (pool&&pool.length)? pool[p.snIdx%pool.length] : null; }
 function isRescue(p){ return p.dist==="fern"||p.dist==="sehr fern"; }
+// v100 TUNING-Modell: 4 KW-Bänder + FM (disabled). Jede Station mit eigener Glocke,
+// dazwischen Grundrauschen, Nachbar-Bleed, Geister-Frequenzen.
+const BANDS={SW1:{min:3000,max:5200},SW2:{min:5200,max:10000},SW3:{min:10000,max:18500},SW4:{min:18500,max:22000}};
+function bandOf(freq){ for(const b in BANDS){ if(freq>=BANDS[b].min && freq<=BANDS[b].max) return b; } return null; }
+function bandNightFactor(b,isNight){
+  if(b==="SW1"||b==="SW2") return isNight?1.15:0.6;
+  if(b==="SW3"||b==="SW4") return isNight?0.55:1.1;
+  return 1;
+}
+// Seeded PRNG (mulberry32-Variante) für reproduzierbare Geister-Positionen
+function seededRng(seedStr){
+  let s=0; for(let i=0;i<seedStr.length;i++) s=(s*31+seedStr.charCodeAt(i))|0;
+  return ()=>{ s=(s*0x6D2B79F5+1)|0; return ((s>>>16)&0x7FFF)/0x7FFF; };
+}
+// Asymmetrische Empfangs-Glocke: rx=1 im Kern (|off|<cap*0.25), cos-Abfall auf 0 bei cap.
+// Rechte Flanke cap*(0.75+seedV), linke cap*(0.75-seedV). seedV = seed*0.025.
+function computeRx(off,cap,seed){
+  const seedV=(seed||0)*0.025;
+  const flankR=cap*(0.75+seedV), flankL=cap*(0.75-seedV);
+  const core=cap*0.25;
+  const a=Math.abs(off);
+  if(a<core) return 1;
+  const flank=off>=0?flankR:flankL;
+  if(a>=cap) return 0;
+  // cos-Abfall: a=core → 1, a=cap → 0
+  const t=(a-core)/Math.max(1e-6,flank-core);
+  if(t>=1) return 0;
+  return 0.5*(1+Math.cos(Math.PI*t));
+}
+// Geister-Generator: pro Band 6–10 Pseudo-Zufalls-Frequenzen + Snippet aus POOL.
+function generateGhosts(bandName){
+  const rng=seededRng("ghost_"+bandName);
+  const b=BANDS[bandName];
+  const n=6+Math.floor(rng()*5); // 6..10
+  const stationFreqs=PRESETS.filter(p=>p.freq>=b.min && p.freq<=b.max).map(p=>p.freq);
+  const cats=["voices","tones","static"];
+  const ghosts=[];
+  for(let i=0;i<n;i++){
+    let f, tries=0;
+    do { f=b.min+Math.floor(rng()*(b.max-b.min)); tries++; }
+    while(tries<60 && stationFreqs.concat(ghosts.map(g=>g.freq)).some(sf=>Math.abs(sf-f)<8));
+    const cat=cats[Math.floor(rng()*cats.length)];
+    const pool=POOL[cat];
+    const snippet=pool&&pool.length?pool[Math.floor(rng()*pool.length)]:null;
+    ghosts.push({freq:f, snippet:snippet, src:null, filt:null, gain:null});
+  }
+  return ghosts;
+}
+// Nächstgelegene Station im Band — für Bleed + SCAN-Ziel
+function nearestStationInBand(khz,band){
+  let best=-1, bestDist=Infinity;
+  for(let i=0;i<PRESETS.length;i++){
+    if(bandOf(PRESETS[i].freq)!==band) continue;
+    const d=Math.abs(PRESETS[i].freq-khz);
+    if(d<bestDist){ bestDist=d; best=i; }
+  }
+  return best>=0?{idx:best, dist:bestDist}:null;
+}
 // Physikalisches Fenster pro Charakter-Regler, abgeleitet aus dem Preset (v88):
 // Untergrenze = unentfernbarer Schaden, Obergrenze = was der Kanal physikalisch hergibt.
 function ctlRange(p){ return {
@@ -213,6 +276,9 @@ let frozen=false, freezeT=0, physOff=0; // v96: FREEZE friert Empfangs-Physik (f
 let recKind=null, recT0=0, recTimer=null, recPending=[], recPendingDur=0, recPendingKind=null, extractMode=false; // Aufnahme MITSCHNITT (v97: Float32 + WAV)
 let recGrainKind=null, recGrainT0=0, recGrainTimer=null, recGrainPending=[], recGrainPendingDur=0, recGrainPendingKind=null; // v98: Grain-Aufnahme
 let lastK=null; // v97: tanhCurve-Cache fuer Shaper
+let bandSel="SW2", tuneKhz=6075; // v100: aktives Band + Tuning-Frequenz (Default = STN-01)
+const bandGhosts={}; // v100: pro Band 6-10 Geister, lazy initialisiert
+let scanTimer=null;  // v100: SCAN-Animation
 const breath={t:0,v:1};
 
 const $=id=>document.getElementById(id);
@@ -416,6 +482,91 @@ function startForeign(){
 function stopForeign(){ if(A.fgSrc){try{A.fgSrc.stop();}catch(e){}} if(A.fg){try{A.fg.disconnect();}catch(e){}} A.fgSrc=null; A.fg=null; if(A.fgSrc2){try{A.fgSrc2.stop();}catch(e){}} if(A.fg2){try{A.fg2.disconnect();}catch(e){}} A.fgSrc2=null; A.fg2=null; }
 
 function loadPreset(i){ idx=(i+PRESETS.length)%PRESETS.length; cur=PRESETS[idx]; curR=ctlRange(cur); stopForeign(); renderReadout(); if(A.ctx) startForeign(); applyPreset(); updateRescueUI(); if(frozen){ frozen=false; physOff=0; freezeT=0; } updateFreezeUI(); if(extractMode){ extractMode=false; } updateRecUI(); }
+// v100 Ghost-Engine: pro Band lazy initialisiert, alle laufen loop=true, gain pro Frame
+function activateGhost(g){
+  if(!A.ctx || !g.snippet || g.src) return;
+  loadAudio(g.snippet, ()=>{
+    if(!A.ctx || !A.bufs[g.snippet] || g.src) return;
+    const src=A.ctx.createBufferSource();
+    src.buffer=A.bufs[g.snippet]; src.loop=true;
+    const filt=A.ctx.createBiquadFilter();
+    filt.type="bandpass"; filt.frequency.value=1500; filt.Q.value=2.5;
+    const gain=A.ctx.createGain(); gain.gain.value=0;
+    gain.channelCount=1; gain.channelCountMode="explicit"; gain.channelInterpretation="speakers";
+    src.connect(filt); filt.connect(gain);
+    gain.connect(A.stoerCollect||A.bus); // Geister via Stoer-Pfad (Extrakt-mute, Hall/Echo-Stör-Eingang verfügbar)
+    try{ src.start(0, Math.random()*src.buffer.duration); }catch(e){}
+    g.src=src; g.filt=filt; g.gain=gain;
+  });
+}
+function ensureBandGhosts(band){
+  if(!bandGhosts[band]) bandGhosts[band]=generateGhosts(band);
+  if(!A.ctx) return;
+  for(const g of bandGhosts[band]){ if(!g.src) activateGhost(g); }
+}
+// v100 Tune-UI-Update: Slider, Anzeige, Stations-Title
+function updateTuneUI(){
+  const sl=$("tuneSlider"), d=$("tuneDisp");
+  if(d) d.textContent=tuneKhz;
+  if(sl){
+    if(+sl.min!==BANDS[bandSel].min) sl.min=BANDS[bandSel].min;
+    if(+sl.max!==BANDS[bandSel].max) sl.max=BANDS[bandSel].max;
+    if(+sl.value!==tuneKhz) sl.value=tuneKhz;
+    const stns=PRESETS.filter(p=>bandOf(p.freq)===bandSel).map(p=>p.id+":"+p.freq).join(" · ");
+    sl.title=stns||"";
+  }
+  // Aktiv-State der Band-Buttons
+  ["SW1","SW2","SW3","SW4"].forEach(b=>{
+    const el=$("band"+b); if(!el) return;
+    const on=(bandSel===b);
+    el.className="px-3 py-2 rounded border text-xs "+(on?"border-amber-400 text-amber-300":"border-slate-700 text-slate-300 hover:border-amber-400 hover:text-amber-300");
+  });
+}
+function setTuneKhz(v){
+  const b=BANDS[bandSel];
+  tuneKhz=Math.max(b.min, Math.min(b.max, Math.round(v)));
+  updateTuneUI();
+}
+function setBand(b){
+  if(!BANDS[b]) return;
+  bandSel=b;
+  const bb=BANDS[b];
+  if(tuneKhz<bb.min||tuneKhz>bb.max){
+    // Auf naechste Station im neuen Band springen oder Bandmitte
+    const near=nearestStationInBand((bb.min+bb.max)/2, b);
+    tuneKhz = near ? PRESETS[near.idx].freq : Math.round((bb.min+bb.max)/2);
+  }
+  updateTuneUI();
+  ensureBandGhosts(b);
+}
+// v100 SCAN: animiertes Aufwaerts-Suchen zur nächsten Station mit Potenzial
+function startScan(){
+  if(scanTimer){ clearInterval(scanTimer); scanTimer=null; }
+  const b=BANDS[bandSel];
+  // Naechste Station aufwaerts (mit Wrap) deren Potenzial (Tag/Nacht-Faktor) > 0.3
+  let bestIdx=-1, bestDist=Infinity;
+  const tNF=bandNightFactor(bandSel,night);
+  for(let i=0;i<PRESETS.length;i++){
+    if(bandOf(PRESETS[i].freq)!==bandSel) continue;
+    if(tNF<0.3) continue;
+    let d=PRESETS[i].freq-tuneKhz;
+    if(d<=0) d+=(b.max-b.min); // wrap
+    if(d<bestDist){ bestDist=d; bestIdx=i; }
+  }
+  if(bestIdx<0) return;
+  const targetKhz=PRESETS[bestIdx].freq;
+  const startKhz=tuneKhz;
+  const totalMs=1500, stepMs=33, steps=Math.round(totalMs/stepMs);
+  let dist = (targetKhz>startKhz)?(targetKhz-startKhz):((b.max-startKhz)+(targetKhz-b.min)+1);
+  let step=0;
+  scanTimer=setInterval(()=>{
+    step++;
+    let nv=startKhz+(dist*step/steps);
+    if(nv>b.max) nv = b.min + (nv-b.max);
+    setTuneKhz(nv);
+    if(step>=steps){ clearInterval(scanTimer); scanTimer=null; setTuneKhz(targetKhz); }
+  },stepMs);
+}
 function renderReadout(){
   $("pid").textContent=cur.id;
   $("pidx").textContent=String(idx+1).padStart(2,"0")+" / "+PRESETS.length;
@@ -429,12 +580,50 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
 
 // v95: Audio-Modulation laeuft per setInterval (laeuft auch bei verstecktem Tab,
 // Browser drosselt auf ~1s im Hintergrund — akzeptiert). UI-Updates separat per rAF.
-let lastQ=0, lastSong=0, lastNoise=0, lastIntf=0;
+let lastQ=0, lastSong=0, lastNoise=0, lastIntf=0, lastRx=0; // v100: lastRx fuer prxDisp
 function audioTick(){
   if(!(A.ctx && playing && cur)) return;
   const now=A.ctx.currentTime;
   // v96: virtuelle Physik-Zeit. FREEZE friert sie ein.
   const T = frozen ? freezeT : (now - physOff);
+  // === v100 TUNING-Schritt: rx aus Glocke berechnen, neuer Fang bei rx>0.1 für ANDERE Station, Bleed außerhalb ===
+  const tNFactor = bandNightFactor(bandSel, night);
+  let rxMain = 0, off = 0, bleedActive = false;
+  // rx für die aktuell gefangene Station, falls im selben Band
+  if(bandOf(cur.freq)===bandSel){
+    off = tuneKhz - cur.freq;
+    const capCur = 6 + cur.gain*8;
+    rxMain = computeRx(off, capCur, cur.seed);
+  }
+  // Neuer Fang? Suche beste Station im aktuellen Band mit Hysterese (>0.5 oder rxMain<0.05 && >0.1)
+  let bestNew=-1, bestNewRx=0;
+  for(let i=0;i<PRESETS.length;i++){
+    if(bandOf(PRESETS[i].freq)!==bandSel) continue;
+    if(i===idx) continue;
+    const off2=tuneKhz-PRESETS[i].freq;
+    const cap2=6+PRESETS[i].gain*8;
+    const rx2=computeRx(off2, cap2, PRESETS[i].seed);
+    if(rx2>bestNewRx){ bestNewRx=rx2; bestNew=i; }
+  }
+  if(bestNew>=0 && (bestNewRx>0.5 || (bestNewRx>0.1 && rxMain<0.05))){
+    loadPreset(bestNew);
+    return; // dieser Frame uebersprungen, naechster Tick verwendet neue cur
+  }
+  // Bleed: ausserhalb capture, aber Nachbar innerhalb 2.5*capture
+  if(rxMain<0.1){
+    const near=nearestStationInBand(tuneKhz, bandSel);
+    if(near){
+      const np=PRESETS[near.idx];
+      const off_n=tuneKhz-np.freq;
+      const cap_n=6+np.gain*8;
+      if(Math.abs(off_n)<2.5*cap_n){
+        const bell=computeRx(off_n*0.4, cap_n, np.seed); // glocke(off/2.5)
+        const rxBleed=0.12*bell;
+        if(rxBleed>rxMain){ rxMain=rxBleed; bleedActive=true; }
+      }
+    }
+  }
+  const rxEff = rxMain * tNFactor;
   const nr=isRescue(cur)?P.nr/100:0;
   const cr=P.crush/100;
   // v97 D10: Stoer-Absenkung steiler — clean faellt monoton bis nr*1.5
@@ -448,7 +637,7 @@ function audioTick(){
   const effDepth=Math.max(0,Math.min(0.95, cur.fadeDepth*(P.breathe/50)));
   const fadeFn=cur.fadeMode==="sea"?fadeSea:fade01;
   const fade=(1-effDepth)+effDepth*fadeFn(T,cur.seed);
-  const q=Math.min(1,cur.q0*prop)*fade;
+  const q=Math.min(1,cur.q0*prop)*fade*rxEff; // v100: × rxEff (Glocke × Tag/Nacht-Band-Faktor)
   const xm=extractMode?0:1; // v97: xm wirkt nur noch auf stoerMute, NICHT auf einzelne Quellen
   // v97 G21 Tag/Nacht-Faktoren (multiplikativ, prop-Logik unberuehrt)
   const tnFG = night ? 1.35 : 0.7;
@@ -509,7 +698,7 @@ function audioTick(){
   if(A.fg2) A.fg2.gain.setTargetAtTime(fg2Base,now,.1);
   A.songGain.gain.setTargetAtTime((A.songBuf||streamMode)?songLvl*aud:0,now,extractMode?.015:.008);
   A.noiseGain.gain.setTargetAtTime(noiseBase,now,.06);
-  const lpcBase=Math.max(700,Math.min(6000, cur.lp*(P.lp/3785)));
+  const lpcBase= bleedActive ? 1400 : Math.max(700,Math.min(6000, cur.lp*(P.lp/3785))); // v100: Bleed = LP 1400 (ferner Schemen)
   const lpc=lpcBase*(1-r)+6000*r; // v98: durchgehende LP-Oeffnung
   const baseLpcQ=900+q*(lpc-900);
   A.lp.frequency.setTargetAtTime(baseLpcQ,now,.04);
@@ -520,9 +709,17 @@ function audioTick(){
   // v98: Crush-Crossfade ueber r (statt o)
   A.crushWet.gain.setTargetAtTime(1-r,now,.08);
   A.crushDry.gain.setTargetAtTime(r,now,.08);
-  A.hetGain.gain.setTargetAtTime(hetBase,now,.05);
-  const hetF=cur.drift ? 600+320*Math.sin(T*0.07+cur.seed)+130*Math.sin(T*0.23+cur.seed*1.3) : 500+cur.q0*1400;
-  A.hetOsc.frequency.setTargetAtTime(hetF,now,.1);
+  // v100 Heterodyn-Physik: |off|*180 Hz (Zero-Beat in der Glockenmitte, steigt nach außen),
+  // Pegel an der Flanke (mittig leise, außen laut). Außerhalb capture → 0.
+  let hetFqOut=500+cur.q0*1400;
+  let hetLevelOut=0;
+  if(rxMain>0.01 && !bleedActive){
+    hetFqOut=Math.max(40, Math.abs(off)*180);
+    const bellFlank=1-rxMain; // 0 mittig, 1 an den Flanken
+    hetLevelOut=hetBase*bellFlank*2.0;
+  }
+  A.hetGain.gain.setTargetAtTime(hetLevelOut,now,.05);
+  A.hetOsc.frequency.setTargetAtTime(hetFqOut,now,.1);
   if(A.sweepGain){
     if(cur.sweep){ const ph=(T*0.09+cur.seed)%1, sf=350+ph*ph*4200; A.sweepOsc.frequency.setTargetAtTime(sf,now,.04); A.sweepGain.gain.setTargetAtTime(0.014*(0.4+P.fgLevel/100)*duckF,now,.1); }
     else A.sweepGain.gain.setTargetAtTime(0,now,.1); }
@@ -533,12 +730,27 @@ function audioTick(){
   if(A.origLP) A.origLP.frequency.setTargetAtTime(baseLpcQ*(1-og*og) + 18000*og*og, now, .05);
   if(A.origGate)  A.origGate.gain.setTargetAtTime(origLvl*xm, now, .08); // v99: Original im Extrakt absolut stumm (× xm)
   if(A.chainGate) A.chainGate.gain.setTargetAtTime(Math.cos(og*Math.PI/2), now, .08);
-  lastQ=q; lastSong=songLvl*aud; lastNoise=noiseBase*xm; lastIntf=fgBase*xm;
+  // v100 Geister: pro Band 6-10 schmale Glocken ±3 kHz; gain via Distanz × Tag/Nacht-Band-Faktor
+  ensureBandGhosts(bandSel);
+  const ghosts=bandGhosts[bandSel];
+  if(ghosts){
+    for(const g of ghosts){
+      if(!g.gain) continue;
+      const off_g=Math.abs(tuneKhz-g.freq);
+      let lvl=0;
+      if(off_g<3) lvl=(1-off_g/3)*0.08*tNFactor;
+      g.gain.gain.setTargetAtTime(lvl,now,.08);
+    }
+  }
+  lastQ=q; lastSong=songLvl*aud; lastNoise=noiseBase*xm; lastIntf=fgBase*xm; lastRx=rxMain;
 }
 setInterval(audioTick, 33);
 (function uiTick(){
   if(A.ctx && playing && cur){
-    if(frames++%6===0){ updateMeters(lastQ,lastSong,lastNoise,lastIntf); updateSNR(lastQ); }
+    if(frames++%6===0){
+      updateMeters(lastQ,lastSong,lastNoise,lastIntf); updateSNR(lastQ);
+      const px=$("prxDisp"); if(px) px.textContent = lastRx>0.01?("rx "+Math.round(lastRx*100)+"%"):"—"; // v100
+    }
   }
   requestAnimationFrame(uiTick);
 })();
@@ -879,7 +1091,7 @@ $("btnSaveGrain").addEventListener("click",saveRecGrain);
 $("btnExt").addEventListener("click",()=>setExtract(!extractMode));
 $("btnFreeze").addEventListener("click",()=>setFreeze(!frozen));
 // v97 G20: SCAN — zufaelliges Preset != aktuellem
-$("btnScan").addEventListener("click",()=>{ if(PRESETS.length<2) return; let j; do{ j=Math.floor(Math.random()*PRESETS.length); }while(j===idx); loadPreset(j); });
+$("btnScan").addEventListener("click",startScan); // v100: animierter Suchlauf aufwaerts
 function btnCls(active){ return "px-3 py-2 rounded border text-xs "+(active?"border-emerald-500 text-emerald-300":"border-slate-700 text-slate-400"); }
 function setMaster(on){ masterOn=on; if(A.ctx){ const t=A.ctx.currentTime; A.mOn.gain.setTargetAtTime(on?1:0,t,.03); A.mOff.gain.setTargetAtTime(on?0:1,t,.03);} const b=$("btnMaster"); b.textContent=on?"MASTER AN":"MASTER AUS"; b.className=btnCls(on); }
 
@@ -887,8 +1099,11 @@ $("play").addEventListener("click",togglePlay);
 $("btnStream").addEventListener("click",()=>loadStream($("streamUrl").value.trim()));
 $("streamUrl").addEventListener("keydown",e=>{ if(e.key==="Enter") loadStream($("streamUrl").value.trim()); });
 $("btnMaster").addEventListener("click",()=>setMaster(!masterOn));
-$("prev").addEventListener("click",()=>loadPreset(idx-1));
-$("next").addEventListener("click",()=>loadPreset(idx+1));
+// v100: prev/next entfernt — Band-Buttons + Tune-Slider übernehmen
+["SW1","SW2","SW3","SW4"].forEach(b=>{
+  $("band"+b).addEventListener("click",()=>setBand(b));
+});
+$("tuneSlider").addEventListener("input",e=>setTuneKhz(+e.target.value));
 $("daynight").addEventListener("click",()=>{ night=!night; const b=$("daynight"); b.textContent=night?"☾ NACHT":"☀ TAG"; b.className="px-2 py-1 text-xs rounded border "+(night?"border-indigo-400 text-indigo-300":"border-amber-400 text-amber-300"); });
 $("file").addEventListener("change",e=>{ if(e.target.files[0]) loadSong(e.target.files[0]); });
 const drop=$("drop");
@@ -897,6 +1112,7 @@ drop.addEventListener("dragleave",()=>{ drop.className="block border border-dash
 drop.addEventListener("drop",e=>{ e.preventDefault(); drop.className="block border border-dashed border-slate-700 text-slate-400 rounded p-3 text-center cursor-pointer mb-2"; const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) loadSong(f); });
 
 renderReadout();
+updateTuneUI(); // v100: initiale Band-Highlights, Slider min/max/value, tuneDisp, Stations-Title
 </script>
 </body>
 </html>
