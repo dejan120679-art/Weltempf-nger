@@ -385,7 +385,7 @@ function startForeign(){
 }
 function stopForeign(){ if(A.fgSrc){try{A.fgSrc.stop();}catch(e){}} if(A.fg){try{A.fg.disconnect();}catch(e){}} A.fgSrc=null; A.fg=null; if(A.fgSrc2){try{A.fgSrc2.stop();}catch(e){}} if(A.fg2){try{A.fg2.disconnect();}catch(e){}} A.fgSrc2=null; A.fg2=null; }
 
-function loadPreset(i){ idx=(i+PRESETS.length)%PRESETS.length; cur=PRESETS[idx]; curR=ctlRange(cur); stopForeign(); renderReadout(); if(A.ctx) startForeign(); applyPreset(); updateRescueUI(); if(frozen){ frozen=false; physOff=0; freezeT=0; } updateFreezeUI(); }
+function loadPreset(i){ idx=(i+PRESETS.length)%PRESETS.length; cur=PRESETS[idx]; curR=ctlRange(cur); stopForeign(); renderReadout(); if(A.ctx) startForeign(); applyPreset(); updateRescueUI(); if(frozen){ frozen=false; physOff=0; freezeT=0; } updateFreezeUI(); if(extractMode){ extractMode=false; } updateRecUI(); }
 function renderReadout(){
   $("pid").textContent=cur.id;
   $("pidx").textContent=String(idx+1).padStart(2,"0")+" / "+PRESETS.length;
