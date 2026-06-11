@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · PRESET-Modus (v88).
+  Weltempfänger – Werkbank SW · PRESET-Modus (v89).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v88</span>
+      <span class="text-amber-400 text-xs">v89</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -343,10 +343,10 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const now=A.ctx.currentTime, T=now, nr=isRescue(cur)?P.nr/100:0;
     curNr=nr;
     const cr=P.crush/100;
-    const clean=Math.max(0.15,1-nr);                     // Rettung senkt Stoerendes, loescht es nie ganz (Boden)
+    const clean=1-nr;                                     // Rettung: bei Anschlag bleibt nur das musikalische Skelett
     const crushDuck=Math.pow(1-cr*0.7,1.2);               // Verzerrung schiebt Stör/Rausch reziprok runter
     const duckF=clean*crushDuck; curDuck=duckF;            // gemeinsamer Absenk-Faktor
-    const cw=Math.max(curR?curR.crush[0]/100*1.2:0,1-nr); A.crushWet.gain.setTargetAtTime(cw,now,.05); A.crushDry.gain.setTargetAtTime(1-cw,now,.05); // Rettung blendet Verzerrung nur bis zum Preset-Sockel aus
+    A.crushWet.gain.setTargetAtTime(1-nr,now,.05); A.crushDry.gain.setTargetAtTime(nr,now,.05); // Rettung blendet auch die Verzerrung aus — Restauration
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.92+Math.random()*0.10; }
     const m=parseInt(cur.band)||25, nf=Math.max(-1,Math.min(1,(m-31)/18));
     let prop=night?(1+nf*0.45):(1-nf*0.45); prop=Math.max(0.3,Math.min(1.4,prop));
