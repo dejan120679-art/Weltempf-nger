@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · PRESET-Modus (v92).
+  Weltempfänger – Werkbank SW · PRESET-Modus (v93).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v92</span>
+      <span class="text-amber-400 text-xs">v93</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -197,7 +197,7 @@ async function startIcy(url){
   }catch(e){}
 }
 
-const P={noise:30,fgLevel:55,breathe:50,lp:3785,crush:0,het:60,nr:0,reverb:0,delay:0,wow:0,vol:85,drywet:100};
+const P={noise:30,fgLevel:55,breathe:50,lp:3785,crush:0,het:60,nr:0,reverb:0,delay:0,wow:0,grain:0,vol:85,drywet:100};
 let masterOn=true;
 const A={};
 let idx=0, cur=PRESETS[0], curR=null;
@@ -269,6 +269,12 @@ function ensure(){
   origGate.connect(out);
   out.connect(ctx.destination);
   const recDest=ctx.createMediaStreamDestination(); out.connect(recDest); // Abgriff fuer Aufnahme (v90)
+  // Grainify (v93): Ring-Puffer der letzten 2 s der Empfaenger-Ausgabe (Abgriff am Limiter)
+  const grainRing=new Float32Array(ctx.sampleRate*2);
+  const grainTap=ctx.createScriptProcessor(4096,1,1);
+  grainTap.onaudioprocess=e=>{ const inp=e.inputBuffer.getChannelData(0); let w=A.grainW||0; const R=A.grainRing; for(let i=0;i<inp.length;i++){ R[w]=inp[i]; w=(w+1)%R.length; } A.grainW=w; };
+  lim.connect(grainTap); const grainSink=ctx.createGain(); grainSink.gain.value=0; grainTap.connect(grainSink); grainSink.connect(ctx.destination);
+  const grainOut=ctx.createGain(); grainOut.gain.value=0.9; grainOut.connect(mix);
   // Rauschen
   const len=ctx.sampleRate*2, nb=ctx.createBuffer(1,len,ctx.sampleRate), d=nb.getChannelData(0);
   for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
@@ -284,7 +290,7 @@ function ensure(){
   const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(bus); hetOsc.start();
   const sweepOsc=ctx.createOscillator(); sweepOsc.type="sawtooth"; sweepOsc.frequency.value=800;
   const sweepGain=ctx.createGain(); sweepGain.gain.value=0; sweepOsc.connect(sweepGain); sweepGain.connect(bus); sweepOsc.start();
-  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,lim,mix,conv,revWet,del,delWet,safeBell,mHP,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,out,recDest,noiseGain,noiseFilt,songGain,hetOsc,hetGain,sweepOsc,sweepGain,fg:null,fgSrc:null,fg2:null,fgSrc2:null,songBuf:null,songSrc:null,bufs:{}});
+  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,lim,mix,conv,revWet,del,delWet,safeBell,mHP,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,out,recDest,grainRing,grainOut,noiseGain,noiseFilt,songGain,hetOsc,hetGain,sweepOsc,sweepGain,fg:null,fgSrc:null,fg2:null,fgSrc2:null,songBuf:null,songSrc:null,bufs:{}});
   applyControls(); startForeign();
   return A;
 }
@@ -348,7 +354,7 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const now=A.ctx.currentTime, T=now, nr=isRescue(cur)?P.nr/100:0;
     curNr=nr;
     const cr=P.crush/100;
-    const clean=1-nr*0.8;                                 // Rettung = Grundreinigung: senkt Stoer-Quellen bis auf 20%-Rest, nie ganz weg
+    const clean=1-nr*0.6;                                 // Rettung = Grundreinigung: Stoer-Quellen bis auf hoerbaren Rest (~40%), nie ganz weg
     const crushDuck=Math.pow(1-cr*0.7,1.2);               // Verzerrung schiebt Stör/Rausch reziprok runter
     const duckF=clean*crushDuck; curDuck=duckF;            // gemeinsamer Absenk-Faktor
     if(ts-breath.t>700){ breath.t=ts; breath.v=0.92+Math.random()*0.10; }
@@ -403,6 +409,27 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
   setTimeout(crackle, 240+Math.random()*700);
 })();
 
+(function grains(){
+  if(A.ctx && playing && P.grain>0 && A.grainRing){
+    const ctx=A.ctx, amt=P.grain/100, R=A.grainRing;
+    const dur=0.04+Math.random()*0.21, len=Math.max(1,(dur*ctx.sampleRate)|0);
+    const buf=ctx.createBuffer(1,len,ctx.sampleRate), d=buf.getChannelData(0);
+    const guard=2048, span=Math.max(1,R.length-len-guard*2);
+    const back=guard+((Math.random()*span)|0);
+    const start=(((A.grainW||0)-back-len)%R.length+R.length)%R.length;
+    for(let i=0;i<len;i++) d[i]=R[(start+i)%R.length];
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    src.playbackRate.value=Math.pow(2,(Math.random()*4-2)/12);   // leichte Tonhoehen-Streuung +-2 Halbtoene
+    const g=ctx.createGain(); g.gain.value=0;
+    const t=ctx.currentTime, lvl=amt*0.7*(0.5+Math.random()*0.5);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(lvl,t+dur*0.5); g.gain.linearRampToValueAtTime(0.0001,t+dur);
+    src.connect(g); g.connect(A.grainOut);
+    try{ src.start(t); }catch(e){}
+    src.onended=()=>{ try{g.disconnect();}catch(e){} };
+  }
+  setTimeout(grains, P.grain>0 ? 30+(1-P.grain/100)*220+Math.random()*40 : 250);
+})();
+
 function startSong(){ if(!A.songBuf||A.songSrc) return; const s=A.ctx.createBufferSource(); s.buffer=A.songBuf; s.loop=true; s.connect(A.songGain); s.connect(A.origRaw); try{s.start(0,0);}catch(e){} A.songSrc=s; }
 function loadSong(file){ ensure(); streamMode=false; stopIcy(); if(A.streamEl) A.streamEl.pause(); setStatus("lade…"); file.arrayBuffer().then(b=>{ const t=readID3(b)||file.name.replace(/\.[^.]+$/,""); A.ctx.decodeAudioData(b.slice(0)).then(buf=>{ A.songBuf=buf; setStatus("Lied: "+file.name.slice(0,28)); setTitle(t); if(playing){ try{A.songSrc&&A.songSrc.stop();}catch(e){} A.songSrc=null; startSong(); } }).catch(()=>setStatus("⚠ Datei-Fehler")); }).catch(()=>setStatus("⚠ Datei-Fehler")); }
 function loadStream(url){
@@ -430,7 +457,7 @@ let nrCtl=null;
 const SLD={};
 function applyPreset(){
   const c=cur.ctl||{}; if(!curR) curR=ctlRange(cur);
-  Object.assign(P,{noise:c.noise,fgLevel:c.fgLevel,breathe:c.breathe,lp:c.lp,crush:c.crush,het:c.het,nr:0,reverb:0,delay:0,wow:0,vol:50});
+  Object.assign(P,{noise:c.noise,fgLevel:c.fgLevel,breathe:c.breathe,lp:c.lp,crush:c.crush,het:c.het,nr:0,reverb:0,delay:0,wow:0,grain:0,vol:50});
   for(const k in curR){ P[k]=Math.max(curR[k][0],Math.min(curR[k][1],P[k])); }
   for(const k in SLD){ if(P[k]!==undefined){ if(curR[k]){ SLD[k].inp.min=curR[k][0]; SLD[k].inp.max=curR[k][1]; } SLD[k].inp.value=P[k]; SLD[k].val.textContent=P[k]; } }
   applyControls();
@@ -458,6 +485,7 @@ const sl=[
   ["reverb","Hall",0,100,"Räumlicher Nachhall — verklebt das verletzte Signal, erzeugt Distanz."],
   ["delay","Echo",0,100,"Verzögerte Wiederholungen mit Rückkopplung."],
   ["wow","Wow",0,100,"Tonhöhen-Schwanken wie bei Tonband/altem Empfänger."],
+  ["grain","Grain",0,100,"Granular-Wolke: zerlegt die laufende Ausgabe in Körner (40–250 ms) und legt sie als schwebende Textur darüber — auch über das Extrakt-Skelett."],
   "AUSGANG",
   ["vol","Lautstärke",0,100,"Ausgangspegel."],
   ["drywet","Dry / Wet",0,100,"Dry = Originallied, Wet = bearbeiteter Empfang. Stufenlos dazwischen."]
