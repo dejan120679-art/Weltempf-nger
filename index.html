@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · PRESET-Modus (v96).
+  Weltempfänger – Werkbank SW · PRESET-Modus (v97).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,11 +25,11 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v96</span>
+      <span class="text-amber-400 text-xs">v97</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
-      <button id="btnMaster" title="Einheitliches Mastering: Aufräumen unten, milde Bus-Glue, gleichlaut, Schutz." class="px-3 py-2 rounded border text-xs border-emerald-500 text-emerald-300">MASTER AN</button>
+      <button id="btnMaster" title="Einheitliches Mastering: Aufräumen unten, milde Bus-Glue, gleichlaut, Schutz." class="px-3 py-2 rounded border text-xs border-slate-700 text-slate-400">MASTER AUS</button>
     </div>
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
@@ -41,6 +41,7 @@
       <button id="btnRecMix" title="Nimmt auf, was du gerade hörst — im Extrakt-Modus das Skelett, sonst den vollen Empfang." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">● MITSCHNITT</button>
       <button id="btnExt" title="Hörmodus Wahrnehmungs-Extrakt: nur das, was durch den Rauschwald wirklich hörbar ist — Maskiertes bleibt Stille. Jederzeit an/aus; speichern über MITSCHNITT." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">◉ EXTRAKT</button>
       <button id="btnFreeze" title="Friert den Empfangs-Zustand ein — Fading, Flattern, Störungs-Atmung bleiben auf diesem Moment stehen. Das Lied läuft weiter. Wirkt auch auf das Extrakt-Gate." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">❄ FREEZE</button>
+      <button id="btnSave" title="Letzte Aufnahme als WAV speichern." class="hidden px-3 py-2 rounded border border-emerald-500 text-emerald-300 text-xs hover:bg-emerald-950">⬇ SPEICHERN (WAV)</button>
       <span id="status" class="text-slate-400 text-xs ml-2">kein Lied geladen</span>
       <div class="mt-2 flex gap-2">
         <input id="streamUrl" type="text" placeholder="Webradio-Stream-URL (https://…)" class="flex-1 bg-black/40 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
@@ -50,7 +51,7 @@
 
     <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-3">
       <div class="flex justify-end mb-2">
-        <button id="daynight" class="px-2 py-1 text-xs rounded border border-amber-400 text-amber-300">☀ TAG</button>
+        <button id="daynight" title="Ionosphäre: nachts tragen tiefe Bänder weit und das Band füllt sich — mehr Stimmen, mehr Träger. Tags ist es leerer." class="px-2 py-1 text-xs rounded border border-amber-400 text-amber-300">☀ TAG</button>
       </div>
       <div class="flex items-center justify-between mb-3">
         <button id="prev" class="px-3 py-2 rounded border border-slate-700 hover:border-emerald-400 hover:text-emerald-400">◄</button>
@@ -58,7 +59,10 @@
           <div class="text-[10px] tracking-widest text-slate-500">STATION</div>
           <div class="text-slate-300 disp"><span id="pid">—</span> · <span id="pidx">—</span></div>
         </div>
-        <button id="next" class="px-3 py-2 rounded border border-slate-700 hover:border-emerald-400 hover:text-emerald-400">►</button>
+        <div class="flex gap-1">
+          <button id="next" class="px-3 py-2 rounded border border-slate-700 hover:border-emerald-400 hover:text-emerald-400">►</button>
+          <button id="btnScan" title="Zufällige andere Station." class="px-3 py-2 rounded border border-slate-700 text-xs hover:border-amber-400 hover:text-amber-300">⇄ SCAN</button>
+        </div>
       </div>
       <div class="rounded-md bg-black/60 border border-slate-800 px-4 py-3">
         <div class="flex items-end justify-between">
@@ -70,7 +74,7 @@
           <div class="text-slate-400">SIGNAL <span id="snr" class="text-emerald-400">—</span></div>
         </div>
         <div class="mt-2 h-2 bg-black/60 border border-slate-800 rounded overflow-hidden"><div id="sigbar" class="h-full" style="width:0%;background:#46e07d"></div></div>
-        <div class="text-slate-500 text-[11px] mt-2 disp">CHARAKTER · Rauschen <span id="cnoise" class="text-slate-300"></span> · Artefakt <span id="cart" class="text-slate-300"></span> · Pfeifen <span id="chet" class="text-slate-300"></span></div>
+        <div class="text-slate-500 text-[11px] mt-2 disp">CHARAKTER · Rauschen <span id="cnoise" class="text-slate-300"></span> · Artefakt <span id="cart" class="text-slate-300"></span> · Pfeifen <span id="chet" class="text-slate-300"></span> · Fremdquellen <span id="pfgsrc" class="text-slate-300">0</span></div>
         <div class="text-slate-400 text-[11px] mt-2 leading-snug">HERKUNFT <span id="porigin" class="text-slate-300">—</span></div>
         <div class="text-slate-400 text-xs mt-1 truncate">TITEL <span id="ptitle" class="text-slate-200">—</span></div>
       </div>
@@ -198,13 +202,14 @@ async function startIcy(url){
 }
 
 const P={noise:30,fgLevel:55,breathe:50,lp:3785,crush:0,het:60,nr:0,reverb:0,delay:0,wow:0,grain:0,vol:85,drywet:100};
-let masterOn=true;
+let masterOn=false; // v97: Master default AUS
 const A={};
 let idx=0, cur=PRESETS[0], curR=null;
-let intfActive=0, playing=false, frames=0, night=false, curNr=0, curDuck=1, streamMode=false;
+let playing=false, frames=0, night=false, curDuck=1, streamMode=false;
 let grainSrcMode="ALLES"; // v95: Quellen-Wahl fuer Macro-Granulator (MUSIK / STOER / ALLES), bleibt ueber Preset-Wechsel stehen
 let frozen=false, freezeT=0, physOff=0; // v96: FREEZE friert Empfangs-Physik (fade, breath, sweep, het-drift) auf virtuelle Zeit ein
-let rec=null, recKind=null, recT0=0, recTimer=null, extractMode=false; // Aufnahme (v90)
+let recKind=null, recT0=0, recTimer=null, recPending=[], recPendingDur=0, recPendingKind=null, extractMode=false; // Aufnahme (v97: Float32 + WAV)
+let lastK=null; // v97: tanhCurve-Cache fuer Shaper
 const breath={t:0,v:1};
 
 const $=id=>document.getElementById(id);
@@ -232,34 +237,46 @@ function ensure(){
   const rTame=ctx.createBiquadFilter(); rTame.type="peaking"; rTame.frequency.value=3200; rTame.Q.value=1.0; rTame.gain.value=0;
   const lim=ctx.createDynamicsCompressor(); lim.threshold.value=-3; lim.ratio.value=20; lim.attack.value=.003; lim.release.value=.12;
   const mix=ctx.createGain();
-  // Raum: Hall + Echo (Sends nach dem Limiter, VOR der Sicherung)
+  // Raum: Hall (Send nach dem Limiter)
   const conv=ctx.createConvolver(); conv.buffer=makeIR(ctx,2.6,2.8);
   const revWet=ctx.createGain(); revWet.gain.value=0;
-  const del=ctx.createDelay(1.0); del.delayTime.value=0.28; const delFb=ctx.createGain(); delFb.gain.value=0.35; del.connect(delFb); delFb.connect(del);
+  // v97 Ionosphaeren-Echo: Feedback durch Tiefpass + milde tanh-Saettigung + LFO-Wobbel
+  const del=ctx.createDelay(1.5); del.delayTime.value=0.28;
+  const fbLP=ctx.createBiquadFilter(); fbLP.type="lowpass"; fbLP.frequency.value=3500; fbLP.Q.value=0.7;
+  const fbSat=ctx.createWaveShaper(); fbSat.curve=tanhCurve(1.2); fbSat.oversample="2x"; // fester k, EINMAL gebaut
+  const delFb=ctx.createGain(); delFb.gain.value=0.35;
+  del.connect(fbLP); fbLP.connect(fbSat); fbSat.connect(delFb); delFb.connect(del);
+  const delLFO=ctx.createOscillator(); delLFO.type="sine"; delLFO.frequency.value=0.4;
+  const delLFOdepth=ctx.createGain(); delLFOdepth.gain.value=0;
+  delLFO.connect(delLFOdepth); delLFOdepth.connect(del.delayTime); delLFO.start();
   const delWet=ctx.createGain(); delWet.gain.value=0;
-  // Unsichtbare Sicherung gegen Ohrenzerfetzen: Schärfe-Trim -> Soft-Clip -> Brickwall-Limiter
+  // Unsichtbare Sicherung
   const safeBell=ctx.createBiquadFilter(); safeBell.type="peaking"; safeBell.frequency.value=3500; safeBell.Q.value=1.1; safeBell.gain.value=-2;
   const softSafe=ctx.createWaveShaper(); softSafe.curve=tanhCurve(1.5); softSafe.oversample="4x";
   const safetyLim=ctx.createDynamicsCompressor(); safetyLim.threshold.value=-1.5; safetyLim.knee.value=0; safetyLim.ratio.value=20; safetyLim.attack.value=.002; safetyLim.release.value=.05;
-  // Master-Stufe (sichtbar schaltbar): Aufräumen unten + milde Bus-Glue + Loudness-Angleich
+  // Master-Stufe
   const mHP=ctx.createBiquadFilter(); mHP.type="highpass"; mHP.frequency.value=90;
-  const mLow=ctx.createBiquadFilter(); mLow.type="lowshelf"; mLow.frequency.value=180; mLow.gain.value=3.5;   // Wärme/Körper
-  const mMid=ctx.createBiquadFilter(); mMid.type="peaking"; mMid.frequency.value=1500; mMid.Q.value=1.0; mMid.gain.value=-3.5; // Funk-Honk raus
-  const mAir=ctx.createBiquadFilter(); mAir.type="highshelf"; mAir.frequency.value=4200; mAir.gain.value=2;   // dezent Luft
+  const mLow=ctx.createBiquadFilter(); mLow.type="lowshelf"; mLow.frequency.value=180; mLow.gain.value=3.5;
+  const mMid=ctx.createBiquadFilter(); mMid.type="peaking"; mMid.frequency.value=1500; mMid.Q.value=1.0; mMid.gain.value=-3.5;
+  const mAir=ctx.createBiquadFilter(); mAir.type="highshelf"; mAir.frequency.value=4200; mAir.gain.value=2;
   const mComp=ctx.createDynamicsCompressor(); mComp.threshold.value=-24; mComp.ratio.value=2; mComp.knee.value=6; mComp.attack.value=.1; mComp.release.value=.5;
   const mMakeup=ctx.createGain(); mMakeup.gain.value=1.7;
   const mOn=ctx.createGain(); mOn.gain.value=masterOn?1:0; const mOff=ctx.createGain(); mOff.gain.value=masterOn?0:1;
-  // A/B: Empfangskette vs. Originallied (sauber, an der Kette vorbei)
+  // A/B: Empfangskette vs. Original
   const chainGate=ctx.createGain(); chainGate.gain.value=1;
   const origGate=ctx.createGain(); origGate.gain.value=0;
   const origRaw=ctx.createGain(); origRaw.gain.value=1;
   const dryDelay=ctx.createDelay(0.2); dryDelay.delayTime.value=0.012; origRaw.connect(dryDelay);
-  // v96: Original-Pfad-Faerbung. Lowpass oeffnet sich mit Phase B des Dry/Wet-Reglers. Mono erzwungen.
+  // v96: Original-Pfad-Faerbung
   const origLP=ctx.createBiquadFilter(); origLP.type="lowpass"; origLP.frequency.value=18000; origLP.Q.value=0.7;
   origLP.channelCount=1; origLP.channelCountMode="explicit"; origLP.channelInterpretation="speakers";
   dryDelay.connect(origLP); origLP.connect(origGate);
   const out=ctx.createGain(); out.gain.value=P.vol/100;
-  // Verkabelung Empfänger
+  // v97: Stoer-Sammelknoten — Stummschaltung erst HIER, nicht an Quellen (Grain-Tap sieht volles Signal)
+  const stoerCollect=ctx.createGain(); stoerCollect.gain.value=1;
+  const stoerMute=ctx.createGain(); stoerMute.gain.value=1;
+  stoerCollect.connect(stoerMute); stoerMute.connect(bus);
+  // Verkabelung Empfaenger
   bus.connect(wow); wow.connect(hp); hp.connect(lp); lp.connect(pkf); pkf.connect(shaper);
   shaper.connect(crushShaper); crushShaper.connect(crushWet); crushWet.connect(agc);
   shaper.connect(crushDry); crushDry.connect(agc);
@@ -267,16 +284,24 @@ function ensure(){
   lim.connect(mix);
   lim.connect(conv); conv.connect(revWet); revWet.connect(mix);
   lim.connect(del); del.connect(delWet); delWet.connect(mix);
-  // Tail: mix -> Schärfe-Trim -> [Master an/aus] -> Soft-Clip -> Brickwall -> chainGate -> out
+  // v97 K3-Fix: Original-Pfad UND grainDryOut treffen die SELBE End-Sicherung (softSafe/safetyLim).
+  // chainGate sitzt jetzt VOR softSafe und mutet NUR den Empfaenger-Pfad.
+  // Tail: mix -> safeBell -> [Master | Direct] -> chainGate -> softSafe -> safetyLim -> out
+  //       origGate -> softSafe   ;   grainDryOut -> softSafe
   mix.connect(safeBell);
-  safeBell.connect(mHP); mHP.connect(mLow); mLow.connect(mMid); mMid.connect(mAir); mAir.connect(mComp); mComp.connect(mMakeup); mMakeup.connect(mOn); mOn.connect(softSafe);
-  safeBell.connect(mOff); mOff.connect(softSafe);
-  softSafe.connect(safetyLim); safetyLim.connect(chainGate); chainGate.connect(out);
-  origGate.connect(out);
+  safeBell.connect(mHP); mHP.connect(mLow); mLow.connect(mMid); mMid.connect(mAir); mAir.connect(mComp); mComp.connect(mMakeup); mMakeup.connect(mOn); mOn.connect(chainGate);
+  safeBell.connect(mOff); mOff.connect(chainGate);
+  chainGate.connect(softSafe);
+  origGate.connect(softSafe);
+  const grainDryOut=ctx.createGain(); grainDryOut.gain.value=0.8; // v97 — nach Gehoer
+  grainDryOut.connect(softSafe);
+  softSafe.connect(safetyLim); safetyLim.connect(out);
   out.connect(ctx.destination);
-  const recDest=ctx.createMediaStreamDestination(); out.connect(recDest); // Abgriff fuer Aufnahme (v90)
-  // Grainify v2 (v95): zwei Ring-Puffer (Musik / Stoer), Abgriff an den QUELLEN.
-  // Koerner laufen via grainOut->bus durch den Empfaenger zurueck (keine Rekursion, weil Abgriff vor der Kette).
+  // v97: Aufnahme-Tap (Float32 ScriptProcessor) statt MediaRecorder
+  const recordTap=ctx.createScriptProcessor(4096,1,1);
+  recordTap.onaudioprocess=e=>{ if(A.recActive){ A.recChunks.push(new Float32Array(e.inputBuffer.getChannelData(0))); } };
+  out.connect(recordTap);
+  // v95: Ring-Puffer (Musik / Stoer)
   const musicRing=new Float32Array(ctx.sampleRate*2);
   const stoerRing=new Float32Array(ctx.sampleRate*2);
   const musicTap=ctx.createScriptProcessor(4096,1,1);
@@ -284,43 +309,50 @@ function ensure(){
   const stoerTap=ctx.createScriptProcessor(4096,1,1);
   stoerTap.onaudioprocess=e=>{ const inp=e.inputBuffer.getChannelData(0); let w=A.stoerW||0; const R=A.stoerRing; for(let i=0;i<inp.length;i++){ R[w]=inp[i]; w=(w+1)%R.length; } A.stoerW=w; };
   const grainSink=ctx.createGain(); grainSink.gain.value=0;
-  musicTap.connect(grainSink); stoerTap.connect(grainSink); grainSink.connect(ctx.destination);
-  const stoerSum=ctx.createGain(); stoerSum.gain.value=1; stoerSum.connect(stoerTap);
+  musicTap.connect(grainSink); stoerTap.connect(grainSink); recordTap.connect(grainSink); grainSink.connect(ctx.destination);
+  // v97: stoerCollect speist auch stoerTap (Abgriff VOR der Extrakt-Stummschaltung, damit Grain im Extrakt Stoer ausgraben kann)
+  stoerCollect.connect(stoerTap);
   const grainOut=ctx.createGain(); grainOut.gain.value=0.9; grainOut.connect(bus);
-  // Rauschen
+  // Rauschen (-> stoerCollect)
   const len=ctx.sampleRate*2, nb=ctx.createBuffer(1,len,ctx.sampleRate), d=nb.getChannelData(0);
   for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
   const noiseSrc=ctx.createBufferSource(); noiseSrc.buffer=nb; noiseSrc.loop=true;
   const noiseFilt=ctx.createBiquadFilter(); noiseFilt.type="bandpass"; noiseFilt.frequency.value=1600; noiseFilt.Q.value=.7;
   const noiseGain=ctx.createGain(); noiseGain.gain.value=0;
-  noiseSrc.connect(noiseFilt); noiseFilt.connect(noiseGain); noiseGain.connect(bus); noiseGain.connect(stoerSum); noiseSrc.start();
-  // Musik (Rettung liegt jetzt in der Kette, nicht hier)
+  noiseSrc.connect(noiseFilt); noiseFilt.connect(noiseGain); noiseGain.connect(stoerCollect); noiseSrc.start();
+  // Musik
   const songGain=ctx.createGain(); songGain.gain.value=0;
   songGain.channelCount=1; songGain.channelCountMode="explicit"; songGain.channelInterpretation="speakers";
   songGain.connect(bus); songGain.connect(musicTap);
+  // Heterodyn / Sweep (-> stoerCollect)
   const hetOsc=ctx.createOscillator(); hetOsc.type="sine"; hetOsc.frequency.value=700;
-  const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(bus); hetGain.connect(stoerSum); hetOsc.start();
+  const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(stoerCollect); hetOsc.start();
   const sweepOsc=ctx.createOscillator(); sweepOsc.type="sawtooth"; sweepOsc.frequency.value=800;
-  const sweepGain=ctx.createGain(); sweepGain.gain.value=0; sweepOsc.connect(sweepGain); sweepGain.connect(bus); sweepGain.connect(stoerSum); sweepOsc.start();
-  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,lim,mix,conv,revWet,del,delWet,safeBell,mHP,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,origLP,out,recDest,musicRing,stoerRing,stoerSum,musicTap,stoerTap,grainOut,noiseGain,noiseFilt,songGain,hetOsc,hetGain,sweepOsc,sweepGain,fg:null,fgSrc:null,fg2:null,fgSrc2:null,songBuf:null,songSrc:null,bufs:{}});
+  const sweepGain=ctx.createGain(); sweepGain.gain.value=0; sweepOsc.connect(sweepGain); sweepGain.connect(stoerCollect); sweepOsc.start();
+  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,lim,mix,conv,revWet,del,delFb,fbLP,delLFO,delLFOdepth,delWet,safeBell,mHP,mLow,mMid,mAir,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,origLP,out,recordTap,musicRing,stoerRing,stoerCollect,stoerMute,musicTap,stoerTap,grainOut,grainDryOut,noiseGain,noiseFilt,songGain,hetOsc,hetGain,sweepOsc,sweepGain,fg:null,fgSrc:null,fg2:null,fgSrc2:null,songBuf:null,songSrc:null,bufs:{},recActive:false,recChunks:[]});
   applyControls(); startForeign();
   return A;
 }
 
 function applyControls(){
   if(!A.ctx) return; const t=A.ctx.currentTime, nr=isRescue(cur)?P.nr/100:0;
-  // Rettung: aggressive Kompression auf dem geformten Empfangssignal, vor dem Raum
+  // Rettung: Stoer-Absenkung laeuft der Aufholverstaerkung voraus (v97 D10)
   A.rHP.frequency.setTargetAtTime(120+nr*300,t,.05);
   A.rComp.threshold.setTargetAtTime(-10-nr*44,t,.05);
   A.rComp.ratio.setTargetAtTime(1+nr*17,t,.05);
   A.rComp.knee.setTargetAtTime(30*(1-nr),t,.05);
-  A.rMakeup.gain.setTargetAtTime(1+nr*3.3,t,.05);
+  A.rMakeup.gain.setTargetAtTime(1+Math.pow(nr,1.6)*3.3,t,.05); // v97: Verstaerkung kommt spaet
   A.rTame.gain.setTargetAtTime(-nr*3,t,.05);
   A.revWet.gain.setTargetAtTime((P.reverb/100)*0.9,t,.06);
-  A.delWet.gain.setTargetAtTime((P.delay/100)*0.6,t,.06);
+  // v97 Ionosphaeren-Echo (Macro-Kurve)
+  const d=P.delay/100;
+  A.delWet.gain.setTargetAtTime(d*0.6,t,.06);
+  A.del.delayTime.setTargetAtTime(0.090+d*d*0.560,t,.05);  // 90 -> 650 ms (d^2 spreizt)
+  A.delFb.gain.setTargetAtTime(0.25+d*0.43,t,.05);          // 0.25 -> 0.68
+  A.fbLP.frequency.setTargetAtTime(3500-d*1900,t,.05);       // 3500 -> 1600 Hz
+  A.delLFOdepth.gain.setTargetAtTime(d*0.004,t,.05);          // 0 -> 4 ms Wobbel
   A.wowDepth.gain.setTargetAtTime((P.wow/100)*0.0035,t,.06);
   A.crushShaper.curve=distCurve(P.crush/100);
-  // v96: Dry/Wet-Mix wird in audioTick zusammen mit den Phase-A/B-Modifikatoren gesetzt (chainGate, origGate, origLP).
   A.out.gain.setTargetAtTime(P.vol/100,t,.05);
 }
 
@@ -330,7 +362,10 @@ function startForeign(){
   if(cur.foreign && !A.fgSrc){
     const name=presetSnippet(cur);
     if(name){ if(!A.bufs[name]){ loadAudio(name,startForeign); } else {
-      const g=A.ctx.createGain(); g.gain.value=0; g.connect(A.bus); if(A.stoerSum) g.connect(A.stoerSum);
+      // v97 H22: mono erzwingen; v97 F13: NUR an stoerCollect (Stummschaltung uebernimmt stoerMute)
+      const g=A.ctx.createGain(); g.gain.value=0;
+      g.channelCount=1; g.channelCountMode="explicit"; g.channelInterpretation="speakers";
+      g.connect(A.stoerCollect||A.bus);
       const s=A.ctx.createBufferSource(); s.buffer=A.bufs[name]; s.loop=true; s.connect(g);
       try{ s.start(0,Math.random()*A.bufs[name].duration); }catch(e){}
       A.fgSrc=s; A.fg=g;
@@ -339,7 +374,9 @@ function startForeign(){
   if(cur.foreign2 && !A.fgSrc2){
     const pool=POOL[cur.foreign2]; const name2=pool&&pool.length?pool[(cur.snIdx2||0)%pool.length]:null;
     if(name2){ if(!A.bufs[name2]){ loadAudio(name2,startForeign); } else {
-      const g2=A.ctx.createGain(); g2.gain.value=0; g2.connect(A.bus); if(A.stoerSum) g2.connect(A.stoerSum);
+      const g2=A.ctx.createGain(); g2.gain.value=0;
+      g2.channelCount=1; g2.channelCountMode="explicit"; g2.channelInterpretation="speakers";
+      g2.connect(A.stoerCollect||A.bus);
       const s2=A.ctx.createBufferSource(); s2.buffer=A.bufs[name2]; s2.loop=true; s2.connect(g2);
       try{ s2.start(0,Math.random()*A.bufs[name2].duration); }catch(e){}
       A.fgSrc2=s2; A.fg2=g2;
@@ -355,6 +392,7 @@ function renderReadout(){
   $("pfreq").textContent=cur.freq; $("pband").textContent=cur.band;
   $("pdist").textContent=cur.dist; $("pkm").textContent=cur.km;
   $("cnoise").textContent=dots(cur.noise*1.6); $("cart").textContent=dots(cur.art*3); $("chet").textContent=dots(cur.het*3);
+  $("pfgsrc").textContent=(cur.foreign?1:0)+(cur.foreign2?1:0); // v97: 0/1/2 Fremdquellen
   $("porigin").textContent=cur.place||"—";
 }
 function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" · "+Math.round(5+q*32)+" dB"; $("sigbar").style.width=Math.round(Math.max(0,Math.min(1,q))*100)+"%"; }
@@ -365,28 +403,34 @@ let lastQ=0, lastSong=0, lastNoise=0, lastIntf=0;
 function audioTick(){
   if(!(A.ctx && playing && cur)) return;
   const now=A.ctx.currentTime;
-  // v96: virtuelle Physik-Zeit. FREEZE friert sie ein; sonst laeuft sie mit offsetkorrigiertem now weiter.
+  // v96: virtuelle Physik-Zeit. FREEZE friert sie ein.
   const T = frozen ? freezeT : (now - physOff);
   const nr=isRescue(cur)?P.nr/100:0;
-  curNr=nr;
   const cr=P.crush/100;
-  const clean=1-nr*0.6;                                 // Rettung = Grundreinigung: Stoer-Quellen bis auf hoerbaren Rest (~40%), nie ganz weg
-  const crushDuck=Math.pow(1-cr*0.7,1.2);               // Verzerrung schiebt Stör/Rausch reziprok runter
-  const duckF=clean*crushDuck; curDuck=duckF;            // gemeinsamer Absenk-Faktor
+  // v97 D10: Stoer-Absenkung steiler — clean faellt monoton bis nr*1.5
+  const clean=1-Math.min(1,nr*1.5)*0.6;
+  const crushDuck=Math.pow(1-cr*0.7,1.2);
+  const duckF=clean*crushDuck; curDuck=duckF;
   const nowMs=performance.now();
-  if(!frozen && nowMs-breath.t>700){ breath.t=nowMs; breath.v=0.92+Math.random()*0.10; } // v96: bei FREEZE bleibt breath.v stehen
+  if(!frozen && nowMs-breath.t>700){ breath.t=nowMs; breath.v=0.92+Math.random()*0.10; }
   const m=parseInt(cur.band)||25, nf=Math.max(-1,Math.min(1,(m-31)/18));
   let prop=night?(1+nf*0.45):(1-nf*0.45); prop=Math.max(0.3,Math.min(1.4,prop));
   const effDepth=Math.max(0,Math.min(0.95, cur.fadeDepth*(P.breathe/50)));
   const fadeFn=cur.fadeMode==="sea"?fadeSea:fade01;
   const fade=(1-effDepth)+effDepth*fadeFn(T,cur.seed);
   const q=Math.min(1,cur.q0*prop)*fade;
-  const xm=extractMode?0:1;                              // EXTRAKT: Stoer-Quellen stumm, Musik nur soweit hoerbar (Maskierung)
+  const xm=extractMode?0:1; // v97: xm wirkt nur noch auf stoerMute, NICHT auf einzelne Quellen
+  // v97 G21 Tag/Nacht-Faktoren (multiplikativ, prop-Logik unberuehrt)
+  const tnFG = night ? 1.35 : 0.7;
+  const tnHet = night ? 1.30 : 1.00;
+  const tnNoiseLvl = night ? 1.00 : 0.85;
+  A.noiseFilt.frequency.setTargetAtTime(1600*(night?0.8:1.15), now, .1);
+  // fg/fg2 Gate-Schwellen je Tag/Nacht
   let fgBase=0, fg2Base=0;
-  if(A.fg){ const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55); fgBase=cur.foreign? gate*(P.fgLevel/100)*0.9*duckF:0; }
-  if(A.fg2){ const gate2=Math.max(0,(fade01(T,cur.seed+9)-0.5)/0.5); fg2Base=cur.foreign2? gate2*(P.fgLevel/100)*0.6*duckF:0; }
+  if(A.fg){ const thr=night?0.35:0.45; const gate=Math.max(0,(fade01(T,cur.seed+5)-thr)/(1-thr)); fgBase=cur.foreign? gate*(P.fgLevel/100)*0.9*duckF:0; }
+  if(A.fg2){ const thr2=night?0.4:0.5; const gate2=Math.max(0,(fade01(T,cur.seed+9)-thr2)/(1-thr2)); fg2Base=cur.foreign2? gate2*(P.fgLevel/100)*0.6*duckF:0; }
+  fgBase *= tnFG; fg2Base *= tnFG;
   let songLvl=q*cur.gain*breath.v; songLvl=Math.max(0.04,songLvl);
-  // an Verzerrung & Co. gekoppelt: hoher Drive -> Lied wird leise & flattert, manchmal kurz weg (kein festes Pausenmuster)
   const drive=Math.min(1, cr*0.8 + (P.noise/100)*0.3 + (P.fgLevel/100)*0.15);
   const f1=0.5+0.5*Math.sin(T*8.3+cur.seed), f2=0.5+0.5*Math.sin(T*14.1+cur.seed*1.7);
   const wob=Math.pow(f1*0.55+f2*0.45, 1+drive*1.8);
@@ -394,47 +438,51 @@ function audioTick(){
   songLvl*=(1-drive*0.35)*flut;
   let noiseBase=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*duckF*0.5;
   let hetBase=(P.het/1000)*cur.het*(0.5+(1-fade))*0.5*clean;
-  // v96 Dry/Wet als zusammenatmende Oeffnung. Zwei Phasen ueber den Regler:
-  // Phase A (w 1.0 -> 0.66): die Kette selbst oeffnet sich. Phase B (w 0.66 -> 0): das Original kommt, mit Fading gekoppelt.
+  noiseBase *= tnNoiseLvl; hetBase *= tnHet;
+  // v96 Dry/Wet: Phase A (Kette weicht) / Phase B (Original kommt)
   const w=P.drywet/100;
-  const o=Math.max(0,Math.min(1,(1-w)/0.34));  // Phase-A-Oeffnung
-  const b=Math.max(0,Math.min(1,(0.66-w)/0.66)); // Phase-B-Original
+  const o=Math.max(0,Math.min(1,(1-w)/0.34));
+  const b=Math.max(0,Math.min(1,(0.66-w)/0.66));
   noiseBase *= (1 - o*0.8);
   hetBase  *= (1 - o*0.8);
   fgBase   *= (1 - o*0.7);
   fg2Base  *= (1 - o*0.7);
-  // EXTRAKT = Wahrnehmungs-Extraktion: hoerbar bleibt nur, was ueber der Maskierungsschwelle des Ohrs liegt.
-  // Startwerte, Feintuning nach Gehoer: Gate oeffnet ab snr 0.5, voll ab 2.0; absolute Hoerschwelle gleitet ab songLvl ~0.012 weich auf.
+  // EXTRAKT — Maskierungs-Gate auf Lied
   let aud=1;
   if(extractMode){
     const masker=noiseBase+(fgBase+fg2Base)*0.8+hetBase*0.4+0.012;
     const snr=songLvl/masker;
-    aud=Math.max(0,Math.min(1,(snr-0.5)/1.5));        // Gate oeffnet ab snr 0.5, voll ab 2.0
+    aud=Math.max(0,Math.min(1,(snr-0.5)/1.5));
     aud*=Math.max(0,Math.min(1,(songLvl-0.012)/0.04));
   }
-  if(A.fg)  A.fg.gain.setTargetAtTime(fgBase*xm,now,.08);
-  if(A.fg2) A.fg2.gain.setTargetAtTime(fg2Base*xm,now,.1);
-  intfActive=fgBase*xm;
+  // v97 F13: Stoer-Quellen-Gains ohne xm; Stummschaltung an stoerMute
+  if(A.stoerMute) A.stoerMute.gain.setTargetAtTime(xm,now,.04);
+  if(A.fg)  A.fg.gain.setTargetAtTime(fgBase,now,.08);
+  if(A.fg2) A.fg2.gain.setTargetAtTime(fg2Base,now,.1);
   A.songGain.gain.setTargetAtTime((A.songBuf||streamMode)?songLvl*aud:0,now,extractMode?.015:.008);
-  A.noiseGain.gain.setTargetAtTime(noiseBase*xm,now,.06);
+  A.noiseGain.gain.setTargetAtTime(noiseBase,now,.06);
   const lpcBase=Math.max(700,Math.min(6000, cur.lp*(P.lp/3785)));
-  const lpc=lpcBase*(1-o)+6000*o;                       // Phase A: LP-Decke oeffnet sich
+  const lpc=lpcBase*(1-o)+6000*o;
   A.lp.frequency.setTargetAtTime(900+q*(lpc-900),now,.04);
+  // v97 C5: tanhCurve-Cache — neu bauen nur wenn |k-lastK|>0.02
   let k=1.4+cur.art*(0.6+(1-fade)*0.8)*1.2*clean;
-  k=k*(1-o)+1.1*o;                                      // Phase A: Shaper-Drive Richtung mild
-  A.shaper.curve=tanhCurve(k);
-  A.hetGain.gain.setTargetAtTime(hetBase*xm,now,.05);
-  const hetF=cur.drift ? 600+320*Math.sin(T*0.07+cur.seed)+130*Math.sin(T*0.23+cur.seed*1.3) : 500+cur.q0*1400; // driftendes Pfeifen
+  k=k*(1-o)+1.1*o;
+  if(lastK===null || Math.abs(k-lastK)>0.02){ A.shaper.curve=tanhCurve(k); lastK=k; }
+  // v97 C8: Crush-Crossfade reagiert auf Phase-A-Oeffnung
+  A.crushWet.gain.setTargetAtTime(1-o,now,.08);
+  A.crushDry.gain.setTargetAtTime(o,now,.08);
+  A.hetGain.gain.setTargetAtTime(hetBase,now,.05);
+  const hetF=cur.drift ? 600+320*Math.sin(T*0.07+cur.seed)+130*Math.sin(T*0.23+cur.seed*1.3) : 500+cur.q0*1400;
   A.hetOsc.frequency.setTargetAtTime(hetF,now,.1);
-  if(A.sweepGain){ // Sweep-Störer zieht periodisch durchs Band
-    if(cur.sweep){ const ph=(T*0.09+cur.seed)%1, sf=350+ph*ph*4200; A.sweepOsc.frequency.setTargetAtTime(sf,now,.04); A.sweepGain.gain.setTargetAtTime(0.014*(0.4+P.fgLevel/100)*duckF*xm,now,.1); }
+  if(A.sweepGain){
+    if(cur.sweep){ const ph=(T*0.09+cur.seed)%1, sf=350+ph*ph*4200; A.sweepOsc.frequency.setTargetAtTime(sf,now,.04); A.sweepGain.gain.setTargetAtTime(0.014*(0.4+P.fgLevel/100)*duckF,now,.1); }
     else A.sweepGain.gain.setTargetAtTime(0,now,.1); }
-  // Phase B: Original-Pfad. Faerbung oeffnet sich; Atmung mit dem Empfaenger-Fade gekoppelt.
+  // Phase B Original-Pfad
   if(A.origLP) A.origLP.frequency.setTargetAtTime(3000+b*b*15000,now,.05);
   const coupleDepth=(1-b)*0.9;
   const origLvl=Math.sin(b*Math.PI/2)*((1-coupleDepth)+coupleDepth*fade);
   if(A.origGate)  A.origGate.gain.setTargetAtTime(origLvl,now,.08);
-  if(A.chainGate) A.chainGate.gain.setTargetAtTime(Math.cos(b*Math.PI/2),now,.08); // Equal-Power auf Ketten-Seite
+  if(A.chainGate) A.chainGate.gain.setTargetAtTime(Math.cos(b*Math.PI/2),now,.08);
   lastQ=q; lastSong=songLvl*aud; lastNoise=noiseBase*xm; lastIntf=fgBase*xm;
 }
 setInterval(audioTick, 33);
@@ -445,8 +493,9 @@ setInterval(audioTick, 33);
   requestAnimationFrame(uiTick);
 })();
 
+// v97: Crackle friert mit FREEZE ein und laeuft via stoerCollect -> stoerMute (Extrakt-Stumm uebernimmt der Mute, nicht ein eigener Guard)
 (function crackle(){
-  if(A.ctx && playing && cur && !extractMode){
+  if(A.ctx && playing && cur && !frozen){
     if(Math.random() < 0.05+cur.noise*0.10){
       const ctx=A.ctx, dur=0.02+Math.random()*0.06, len=Math.max(1,ctx.sampleRate*dur|0);
       const buf=ctx.createBuffer(1,len,ctx.sampleRate), d=buf.getChannelData(0);
@@ -454,53 +503,80 @@ setInterval(audioTick, 33);
       const s=ctx.createBufferSource(); s.buffer=buf;
       const bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=900+Math.random()*2200; bp.Q.value=0.7;
       const g=ctx.createGain(); g.gain.value=(P.noise/100)*cur.noise*(0.5+Math.random())*0.5*curDuck;
-      s.connect(bp); bp.connect(g); g.connect(A.bus); s.start();
+      s.connect(bp); bp.connect(g); g.connect(A.stoerCollect||A.bus); s.start();
       s.onended=()=>{ try{g.disconnect();}catch(e){} };
     }
   }
   setTimeout(crackle, 240+Math.random()*700);
 })();
 
-// Macro-Granulator v2 (v95): Quellen-Wahl, Korngroesse/Spawn/Pitch/Reverse/Stretch/Freeze skalieren mit P.grain
+// Macro-Granulator v97: Freeze-Fix (Laenge+Start gemeinsam), Original-Koerner ab amt>0.4, ALLES = pro Korn MUSIK|STOER
 (function grains(){
   if(A.ctx && playing && P.grain>0 && (A.musicRing||A.stoerRing)){
     const ctx=A.ctx, amt=P.grain/100;
-    // Quelle waehlen
-    let srcMode=grainSrcMode;
-    if(srcMode==="ALLES") srcMode=Math.random()<0.5?"MUSIK":"STOER";
-    const R=(srcMode==="MUSIK")?A.musicRing:A.stoerRing;
-    const W=(srcMode==="MUSIK")?(A.musicW||0):(A.stoerW||0);
-    // Korngroesse: piecewise lerp 30-80 / 80-250 / 250-800 ms
-    let durMin,durMax;
-    if(amt<0.5){ const t0=amt/0.5; durMin=0.030+(0.080-0.030)*t0; durMax=0.080+(0.250-0.080)*t0; }
-    else { const t0=(amt-0.5)/0.5; durMin=0.080+(0.250-0.080)*t0; durMax=0.250+(0.800-0.250)*t0; }
-    const dur=durMin+Math.random()*(durMax-durMin);
-    const len=Math.max(1,(dur*ctx.sampleRate)|0);
+    // v97 F12 Freeze-Fix: gespeicherte Laenge wiederverwenden (sonst zuendet die Bedingung nie)
+    const tryFreeze = amt>0.8 && Math.random()<0.25 && A.grainFreezeStart!=null;
+    let dur, len, srcMode, useOrigBuf, start;
+    if(tryFreeze){
+      len=A.grainFreezeLen;
+      dur=len/ctx.sampleRate;
+      srcMode=A.grainFreezeSrcMode;
+      useOrigBuf=A.grainFreezeUseOrig;
+      start=A.grainFreezeStart;
+    } else {
+      // Korngroesse
+      let durMin,durMax;
+      if(amt<0.5){ const t0=amt/0.5; durMin=0.030+(0.080-0.030)*t0; durMax=0.080+(0.250-0.080)*t0; }
+      else { const t0=(amt-0.5)/0.5; durMin=0.080+(0.250-0.080)*t0; durMax=0.250+(0.800-0.250)*t0; }
+      dur=durMin+Math.random()*(durMax-durMin);
+      len=Math.max(1,(dur*ctx.sampleRate)|0);
+      // Quelle: F15 ALLES wuerfelt pro Korn
+      srcMode=grainSrcMode;
+      if(srcMode==="ALLES") srcMode=Math.random()<0.5?"MUSIK":"STOER";
+      // F14 Original-Koerner: ab amt>0.4 waechst Original-Anteil linear 0..1
+      useOrigBuf=false;
+      if(srcMode==="MUSIK" && amt>0.4 && A.songBuf){
+        const origFrac=(amt-0.4)/0.6;
+        if(Math.random()<origFrac) useOrigBuf=true;
+      }
+      // Startposition bestimmen
+      if(useOrigBuf){
+        start=Math.floor(Math.random()*A.songBuf.length);
+      } else {
+        const R=(srcMode==="MUSIK")?A.musicRing:A.stoerRing;
+        const W=(srcMode==="MUSIK")?(A.musicW||0):(A.stoerW||0);
+        const guard=2048, span=Math.max(1,R.length-len-guard*2);
+        const back=guard+((Math.random()*span)|0);
+        start=(((W-back-len)%R.length+R.length)%R.length);
+      }
+      A.grainFreezeStart=start; A.grainFreezeLen=len; A.grainFreezeSrcMode=srcMode; A.grainFreezeUseOrig=useOrigBuf;
+    }
     const buf=ctx.createBuffer(1,len,ctx.sampleRate), d=buf.getChannelData(0);
-    // Freeze: ab amt>0.8 mit 25 % Chance die Lesepos. des vorigen Korns wiederverwenden
-    let useFreeze=false;
-    if(amt>0.8 && Math.random()<0.25 && A.grainFreezeStart!=null && A.grainFreezeLen===len) useFreeze=true;
-    const guard=2048, span=Math.max(1,R.length-len-guard*2);
-    const back=guard+((Math.random()*span)|0);
-    const start=useFreeze?A.grainFreezeStart:(((W-back-len)%R.length+R.length)%R.length);
-    A.grainFreezeStart=start; A.grainFreezeLen=len;
-    // Reverse: 0 % (<0.3) / linear bis 25 % (0.6) / linear bis 40 % (1.0)
+    // Reverse-Chance: 0/25/40 % je nach amt
     let revP=0;
     if(amt>=0.3 && amt<0.6) revP=0.25*((amt-0.3)/0.3);
     else if(amt>=0.6) revP=0.25+(0.40-0.25)*((amt-0.6)/0.4);
     const reverse=Math.random()<revP;
-    if(reverse) for(let i=0;i<len;i++) d[i]=R[(start+len-1-i+R.length)%R.length];
-    else for(let i=0;i<len;i++) d[i]=R[(start+i)%R.length];
+    if(useOrigBuf){
+      const sb=A.songBuf;
+      const ch0=sb.getChannelData(0);
+      const ch1=sb.numberOfChannels>1?sb.getChannelData(1):null;
+      const sl=ch0.length;
+      const getMono=idx=>ch1?(ch0[idx]+ch1[idx])*0.5:ch0[idx];
+      if(reverse) for(let i=0;i<len;i++) d[i]=getMono(((start+len-1-i)%sl+sl)%sl);
+      else for(let i=0;i<len;i++) d[i]=getMono((start+i)%sl);
+    } else {
+      const R=(srcMode==="MUSIK")?A.musicRing:A.stoerRing;
+      if(reverse) for(let i=0;i<len;i++) d[i]=R[(start+len-1-i+R.length)%R.length];
+      else for(let i=0;i<len;i++) d[i]=R[(start+i)%R.length];
+    }
     const srcN=ctx.createBufferSource(); srcN.buffer=buf;
-    // Pitch: Streuung +-2 HT (amt 0) -> +-7 HT (0.5) -> +-12 HT (1)
     let spread;
     if(amt<0.5) spread=2+(7-2)*(amt/0.5);
     else spread=7+(12-7)*((amt-0.5)/0.5);
     const cents=(Math.random()*2-1)*spread*100;
     let rate=Math.pow(2,cents/1200);
-    // ab amt>0.7: 15 % Chance auf Oktav-Sprung
     if(amt>0.7 && Math.random()<0.15) rate*=(Math.random()<0.5?2:0.5);
-    // Stretch: ab amt>0.6 mit 30 % Chance gedehnt 0.4-0.7
     if(amt>0.6 && Math.random()<0.30) rate*=(0.4+Math.random()*0.3);
     srcN.playbackRate.value=rate;
     const g=ctx.createGain(); g.gain.value=0;
@@ -508,11 +584,12 @@ setInterval(audioTick, 33);
     g.gain.setValueAtTime(0,t);
     g.gain.linearRampToValueAtTime(lvl,t+dur*0.5);
     g.gain.linearRampToValueAtTime(0.0001,t+dur);
-    srcN.connect(g); g.connect(A.grainOut);
+    srcN.connect(g);
+    // Original-Koerner umgehen die Empfaenger-Kette (grainDryOut), sonst Empfangs-Koerner (grainOut)
+    g.connect(useOrigBuf?A.grainDryOut:A.grainOut);
     try{ srcN.start(t); }catch(e){}
     srcN.onended=()=>{ try{g.disconnect();}catch(e){} };
   }
-  // Spawn-Intervall: ~180 ms (amt klein) -> ~35 ms (amt=1) + Zufall
   const gap=P.grain>0 ? (180-(180-35)*(P.grain/100))+Math.random()*40 : 250;
   setTimeout(grains, gap);
 })();
@@ -522,7 +599,10 @@ function loadSong(file){ ensure(); streamMode=false; stopIcy(); if(A.streamEl) A
 function loadStream(url){
   if(!url) return;
   ensure(); A.ctx.resume();
-  if(!A.streamEl){ A.streamEl=new Audio(); A.streamEl.crossOrigin="anonymous"; A.streamSrc=A.ctx.createMediaElementSource(A.streamEl); A.streamSrc.connect(A.songGain); A.streamSrc.connect(A.origRaw); A.streamEl.onerror=()=>setStatus("⚠ Stream-Fehler (URL oder CORS)"); }
+  if(!A.streamEl){ A.streamEl=new Audio(); A.streamEl.crossOrigin="anonymous"; A.streamSrc=A.ctx.createMediaElementSource(A.streamEl);
+    // v97 H22: Stream auf mono zwingen
+    A.streamSrc.channelCount=1; A.streamSrc.channelCountMode="explicit"; A.streamSrc.channelInterpretation="speakers";
+    A.streamSrc.connect(A.songGain); A.streamSrc.connect(A.origRaw); A.streamEl.onerror=()=>setStatus("⚠ Stream-Fehler (URL oder CORS)"); }
   if(A.songSrc){ try{A.songSrc.stop();}catch(e){} A.songSrc=null; }
   streamMode=true; setTitle("—");
   A.streamEl.src=url; setStatus("Stream verbinden…");
@@ -544,24 +624,44 @@ let nrCtl=null;
 const SLD={};
 function applyPreset(){
   const c=cur.ctl||{}; if(!curR) curR=ctlRange(cur);
-  Object.assign(P,{noise:c.noise,fgLevel:c.fgLevel,breathe:c.breathe,lp:c.lp,crush:c.crush,het:c.het,nr:0,reverb:0,delay:0,wow:0,grain:0,vol:50});
+  Object.assign(P,{noise:c.noise,fgLevel:c.fgLevel,breathe:c.breathe,lp:c.lp,crush:c.crush,het:c.het,nr:0,reverb:0,delay:0,wow:0,grain:0}); // v97 G16: vol bleibt erhalten
   for(const k in curR){ P[k]=Math.max(curR[k][0],Math.min(curR[k][1],P[k])); }
   for(const k in SLD){ if(P[k]!==undefined){ if(curR[k]){ SLD[k].inp.min=curR[k][0]; SLD[k].inp.max=curR[k][1]; } SLD[k].inp.value=P[k]; SLD[k].val.textContent=P[k]; } }
   applyControls();
 }
-function updateRescueUI(){
-  if(!nrCtl) return;
-  const a=isRescue(cur);
-  nrCtl.inp.disabled=!a;
-  nrCtl.row.style.opacity=a?"1":"0.45";
-  nrCtl.label.textContent=a?"Rettung":"Rettung — nur fern";
+function updateRescueUI(){ updateSliderUI(); }
+function updateSliderUI(){
+  // Rettung — nur fern
+  if(nrCtl){
+    const a=isRescue(cur);
+    nrCtl.inp.disabled=!a;
+    nrCtl.row.style.opacity=a?"1":"0.45";
+    nrCtl.label.textContent=a?"Rettung":"Rettung — nur fern";
+  }
+  // v97 B6/B7: het/fgLevel ausgrauen wenn am Preset nichts dran haengt
+  const hetCtl=SLD.het;
+  if(hetCtl){
+    const a=cur.het>0;
+    hetCtl.inp.disabled=!a;
+    hetCtl.inp.parentElement.style.opacity=a?"1":"0.45";
+    const lab=hetCtl.inp.parentElement.querySelector("span.lbl");
+    if(lab) lab.textContent=a?"Pfeifen":"Pfeifen — hier keiner";
+  }
+  const fgCtl=SLD.fgLevel;
+  if(fgCtl){
+    const a=!!(cur.foreign||cur.foreign2||cur.sweep);
+    fgCtl.inp.disabled=!a;
+    fgCtl.inp.parentElement.style.opacity=a?"1":"0.45";
+    const lab=fgCtl.inp.parentElement.querySelector("span.lbl");
+    if(lab) lab.textContent=a?"Fremdsignal":"Fremdsignal — hier keines";
+  }
 }
 // [key, Ein-Wort-Name, min, max, Tooltip]
 const sl=[
   "EMPFANG",
-  ["noise","Rauschen",0,100,"Stärke von Grundrauschen und Knistern."],
-  ["fgLevel","Fremdsignal",0,100,"Lautstärke fremder Sender/Störstationen, die sich übers Lied legen."],
-  ["breathe","Schwund",0,100,"Wie stark das Signal an- und abschwillt (QSB-Fading). 0 = steht still."],
+  ["noise","Rauschen",0,100,"Stärke von Grundrauschen und Knistern. Steuert auch mit, wie unruhig das Lied flattert."],
+  ["fgLevel","Fremdsignal",0,100,"Lautstärke fremder Sender/Störstationen, die sich übers Lied legen. Manche Stationen haben eine zweite Fremdquelle und einen durchziehenden Sweep — beide hängen mit an diesem Regler."],
+  ["breathe","Schwund",0,100,"Wie stark das Signal an- und abschwillt (QSB-Fading). Untergrenze je nach Station — ein Rest-Atmen bleibt immer."],
   "KLANG",
   ["lp","Bandbreite",1200,6000,"Empfangsbreite: schmal = dumpf/fern, breit = heller/klarer. Obergrenze = was der Sender physikalisch liefert."],
   ["crush","Verzerrung",0,100,"Übersteuerung & Demodulator-Verzerrung des Empfangs — wie ein überfahrener AM-Detektor bei schwachem Träger."],
@@ -570,7 +670,7 @@ const sl=[
   ["nr","Rettung",0,100,"Grundreinigung: hebt das fragile Signal nach vorn — nur lauter, nichts Verlorenes zurückgeholt. Störendes weicht bis auf einen Rest, die Deformation des Signals bleibt. Nur bei fernen Stationen."],
   "RAUM",
   ["reverb","Hall",0,100,"Räumlicher Nachhall — verklebt das verletzte Signal, erzeugt Distanz."],
-  ["delay","Echo",0,100,"Verzögerte Wiederholungen mit Rückkopplung."],
+  ["delay","Echo",0,100,"Ionosphären-Echo: unten kurzer Mehrwege-Slapback, oben lange geisterhafte Wiederholungen — jedes Echo dumpfer, zerrt minimal mehr, eiert leicht, stirbt ins Rauschen."],
   ["wow","Wow",0,100,"Tonhöhen-Schwanken wie bei Tonband/altem Empfänger."],
   ["grain","Grain",0,100,"Macro-Granulator: unten subtiles Schimmern, Mitte ambiente Wolke, oben fast unkenntlich. Quelle wählbar: MUSIK / STÖR / ALLES. Körner laufen durch den Empfänger."],
   "AUSGANG",
@@ -599,29 +699,54 @@ sl.forEach(item=>{
 updateRescueUI();
 applyPreset();
 
-// ===== MITSCHNITT (nimmt auf, was man hoert) & EXTRAKT-Hoermodus — v94 =====
+// ===== v97 MITSCHNITT — Float32-Capture + WAV-Export; EXTRAKT bleibt reiner Hoermodus =====
 function fmtT(ms){ const sec=Math.floor(ms/1000); return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0"); }
 function recName(kind,ext){ const d=new Date(),p=n=>String(n).padStart(2,"0"); return cur.id+"_"+kind+"_"+d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+"."+ext; }
+function buildWav(chunks, sampleRate){
+  let total=0; for(const c of chunks) total+=c.length;
+  const buf=new ArrayBuffer(44+total*2); const dv=new DataView(buf);
+  const wStr=(off,s)=>{ for(let i=0;i<s.length;i++) dv.setUint8(off+i,s.charCodeAt(i)); };
+  wStr(0,"RIFF"); dv.setUint32(4,36+total*2,true); wStr(8,"WAVE");
+  wStr(12,"fmt "); dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,1,true);
+  dv.setUint32(24,sampleRate,true); dv.setUint32(28,sampleRate*2,true);
+  dv.setUint16(32,2,true); dv.setUint16(34,16,true);
+  wStr(36,"data"); dv.setUint32(40,total*2,true);
+  let pos=44;
+  for(const c of chunks){ for(let i=0;i<c.length;i++){ const s=Math.max(-1,Math.min(1,c[i])); dv.setInt16(pos,(s*0x7FFF)|0,true); pos+=2; } }
+  return new Blob([buf],{type:"audio/wav"});
+}
 function startRec(){
-  ensure(); A.ctx.resume(); if(rec) return;
-  const kind=extractMode?"extrakt":"mitschnitt";
-  const mt=(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported("audio/webm"))?"audio/webm":"";
-  const ext=mt?"webm":"m4a";
-  const chunks=[];
-  try{ rec=mt?new MediaRecorder(A.recDest.stream,{mimeType:mt}):new MediaRecorder(A.recDest.stream); }
-  catch(e){ setStatus("Aufnahme nicht unterstützt"); rec=null; updateRecUI(); return; }
-  rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
-  rec.onstop=()=>{ const blob=new Blob(chunks,{type:mt||"audio/mp4"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=recName(kind,ext); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); };
-  rec.start(250); recKind=kind; recT0=Date.now();
+  ensure(); A.ctx.resume();
+  if(A.recActive) return;
+  if(recPending.length>0){ // ungespeicherte vorige Aufnahme
+    if(!confirm("Ungespeicherte Aufnahme verwerfen?")) return;
+    recPending=[]; recPendingDur=0; recPendingKind=null;
+  }
+  A.recChunks=[]; A.recActive=true;
+  recKind=extractMode?"extrakt":"mitschnitt"; recT0=Date.now();
   recTimer=setInterval(updateRecUI,250); updateRecUI();
 }
-function stopRec(){ if(!rec) return; try{rec.stop();}catch(e){} rec=null; recKind=null; clearInterval(recTimer); recTimer=null; updateRecUI(); }
+function stopRec(){
+  if(!A.recActive) return;
+  A.recActive=false;
+  recPending=A.recChunks; recPendingDur=Date.now()-recT0; recPendingKind=recKind;
+  A.recChunks=[]; clearInterval(recTimer); recTimer=null;
+  updateRecUI();
+}
+function saveRec(){
+  if(recPending.length===0) return;
+  const blob=buildWav(recPending, A.ctx.sampleRate);
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=recName(recPendingKind,"wav"); a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  recPending=[]; recPendingDur=0; recPendingKind=null;
+  updateRecUI();
+}
 function setExtract(on){ ensure(); if(on) A.ctx.resume(); extractMode=on; updateRecUI(); }
 function setFreeze(on){
   ensure(); if(on) A.ctx.resume();
   const now=A.ctx.currentTime;
-  if(on && !frozen){ freezeT = now - physOff; frozen=true; }       // virtuelle Zeit auf jetzt einfrieren
-  else if(!on && frozen){ physOff = now - freezeT; frozen=false; } // Physik springt nicht: physOff nachfuehren
+  if(on && !frozen){ freezeT = now - physOff; frozen=true; }
+  else if(!on && frozen){ physOff = now - freezeT; frozen=false; }
   updateFreezeUI();
 }
 function updateFreezeUI(){
@@ -631,16 +756,24 @@ function updateFreezeUI(){
   b.textContent=frozen?"❄ FREEZE AN":"❄ FREEZE";
 }
 function updateRecUI(){
-  const bm=$("btnRecMix"), be=$("btnExt"); if(!bm||!be) return;
+  const bm=$("btnRecMix"), be=$("btnExt"), bs=$("btnSave"); if(!bm||!be) return;
   const base="px-3 py-2 rounded border text-xs ";
-  bm.className=base+(rec?"border-red-500 text-red-400":"text-slate-400 border-slate-700 hover:border-amber-400 hover:text-amber-300");
-  bm.textContent=rec?"■ STOPP · "+fmtT(Date.now()-recT0)+(recKind==="extrakt"?" (Extrakt)":""):"● MITSCHNITT";
+  const recAct=A.recActive===true;
+  bm.className=base+(recAct?"border-red-500 text-red-400":"text-slate-400 border-slate-700 hover:border-amber-400 hover:text-amber-300");
+  bm.textContent=recAct?"■ STOPP · "+fmtT(Date.now()-recT0)+(recKind==="extrakt"?" (Extrakt)":""):"● MITSCHNITT";
   be.className=base+(extractMode?"border-amber-400 text-amber-300":"text-slate-400 border-slate-700 hover:border-amber-400 hover:text-amber-300");
   be.textContent=extractMode?"◉ EXTRAKT AN":"◉ EXTRAKT";
+  if(bs){
+    bs.classList.toggle("hidden", recPending.length===0);
+    if(recPending.length>0) bs.textContent="⬇ SPEICHERN (WAV) · "+fmtT(recPendingDur);
+  }
 }
-$("btnRecMix").addEventListener("click",()=>{ rec?stopRec():startRec(); });
+$("btnRecMix").addEventListener("click",()=>{ A.recActive?stopRec():startRec(); });
+$("btnSave").addEventListener("click",saveRec);
 $("btnExt").addEventListener("click",()=>setExtract(!extractMode));
 $("btnFreeze").addEventListener("click",()=>setFreeze(!frozen));
+// v97 G20: SCAN — zufaelliges Preset != aktuellem
+$("btnScan").addEventListener("click",()=>{ if(PRESETS.length<2) return; let j; do{ j=Math.floor(Math.random()*PRESETS.length); }while(j===idx); loadPreset(j); });
 function btnCls(active){ return "px-3 py-2 rounded border text-xs "+(active?"border-emerald-500 text-emerald-300":"border-slate-700 text-slate-400"); }
 function setMaster(on){ masterOn=on; if(A.ctx){ const t=A.ctx.currentTime; A.mOn.gain.setTargetAtTime(on?1:0,t,.03); A.mOff.gain.setTargetAtTime(on?0:1,t,.03);} const b=$("btnMaster"); b.textContent=on?"MASTER AN":"MASTER AUS"; b.className=btnCls(on); }
 
