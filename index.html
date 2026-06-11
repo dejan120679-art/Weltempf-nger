@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · PRESET-Modus (v93).
+  Weltempfänger – Werkbank SW · PRESET-Modus (v94).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v93</span>
+      <span class="text-amber-400 text-xs">v94</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -38,9 +38,8 @@
         <input id="file" type="file" accept="audio/*" class="hidden">
       </label>
       <button id="play" class="px-4 py-2 rounded border border-emerald-600 text-emerald-400 hover:bg-emerald-950">▶ PLAY</button>
-      <button id="btnRecMix" title="Nimmt den vollen Empfang auf, wie er klingt — mit Rauschen, Fremdsignal, allem. Der Fund." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">● MITSCHNITT</button>
-      <button id="btnExt" title="Isolation: zieht nur das melodische Material in seiner aktuellen Form heraus — Stör-Quellen ganz stumm, nichts komprimiert. Erster Druck: hören (läuft schon mit). Zweiter Druck: speichern." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">◉ EXTRAKT</button>
-      <button id="btnExtX" class="hidden px-2 py-2 rounded border border-slate-700 text-xs text-slate-500 hover:border-red-400 hover:text-red-400" title="Extrakt-Modus beenden ohne zu speichern.">✕ verwerfen</button>
+      <button id="btnRecMix" title="Nimmt auf, was du gerade hörst — im Extrakt-Modus das Skelett, sonst den vollen Empfang." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">● MITSCHNITT</button>
+      <button id="btnExt" title="Hörmodus Wahrnehmungs-Extrakt: nur das, was durch den Rauschwald wirklich hörbar ist — Maskiertes bleibt Stille. Jederzeit an/aus; speichern über MITSCHNITT." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">◉ EXTRAKT</button>
       <span id="status" class="text-slate-400 text-xs ml-2">kein Lied geladen</span>
       <div class="mt-2 flex gap-2">
         <input id="streamUrl" type="text" placeholder="Webradio-Stream-URL (https://…)" class="flex-1 bg-black/40 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
@@ -364,11 +363,11 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const fadeFn=cur.fadeMode==="sea"?fadeSea:fade01;
     const fade=(1-effDepth)+effDepth*fadeFn(T,cur.seed);
     const q=Math.min(1,cur.q0*prop)*fade;
-    const xm=extractMode?0:1;                              // EXTRAKT: Nicht-Musik stumm waehrend der Aufnahme
-    let fgLvl=0;
-    if(A.fg){ const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55); fgLvl=cur.foreign? gate*(P.fgLevel/100)*0.9*duckF*xm:0; A.fg.gain.setTargetAtTime(fgLvl,now,.08); }
-    if(A.fg2){ const gate2=Math.max(0,(fade01(T,cur.seed+9)-0.5)/0.5); A.fg2.gain.setTargetAtTime(cur.foreign2? gate2*(P.fgLevel/100)*0.6*duckF*xm:0,now,.1); }
-    intfActive=fgLvl;
+    const xm=extractMode?0:1;                              // EXTRAKT: Stoer-Quellen stumm, Musik nur soweit hoerbar (Maskierung)
+    let fgBase=0, fg2Base=0;
+    if(A.fg){ const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55); fgBase=cur.foreign? gate*(P.fgLevel/100)*0.9*duckF:0; A.fg.gain.setTargetAtTime(fgBase*xm,now,.08); }
+    if(A.fg2){ const gate2=Math.max(0,(fade01(T,cur.seed+9)-0.5)/0.5); fg2Base=cur.foreign2? gate2*(P.fgLevel/100)*0.6*duckF:0; A.fg2.gain.setTargetAtTime(fg2Base*xm,now,.1); }
+    intfActive=fgBase*xm;
     let songLvl=q*cur.gain*breath.v; songLvl=Math.max(0.04,songLvl);
     // an Verzerrung & Co. gekoppelt: hoher Drive -> Lied wird leise & flattert, manchmal kurz weg (kein festes Pausenmuster)
     const drive=Math.min(1, cr*0.8 + (P.noise/100)*0.3 + (P.fgLevel/100)*0.15);
@@ -376,19 +375,30 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
     const wob=Math.pow(f1*0.55+f2*0.45, 1+drive*1.8);
     const flut=1-drive*(1-wob);
     songLvl*=(1-drive*0.35)*flut;
-    A.songGain.gain.setTargetAtTime((A.songBuf||streamMode)?songLvl:0,now,.008);
-    const noiseLvl=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*duckF*0.5*xm;
-    A.noiseGain.gain.setTargetAtTime(noiseLvl,now,.06);
+    const noiseBase=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*duckF*0.5;
+    const hetBase=(P.het/1000)*cur.het*(0.5+(1-fade))*0.5*clean;
+    // EXTRAKT = Wahrnehmungs-Extraktion: hoerbar bleibt nur, was ueber der Maskierungsschwelle des Ohrs liegt.
+    // Simultane Maskierung: Signal-zu-Masker-Verhaeltnis, weiche Schwelle ab 1:1 (0 dB), voll ab ~2:1 (+6 dB);
+    // Toene (Heterodyn) maskieren schwaecher als Breitband-Rauschen -> geringeres Gewicht. Plus absolute Hoerschwelle.
+    let aud=1;
+    if(extractMode){
+      const masker=noiseBase+(fgBase+fg2Base)*0.8+hetBase*0.4+0.012;
+      const snr=songLvl/masker;
+      aud=Math.max(0,Math.min(1,snr-1));
+      aud*=Math.max(0,Math.min(1,(songLvl-0.02)/0.05));
+    }
+    A.songGain.gain.setTargetAtTime((A.songBuf||streamMode)?songLvl*aud:0,now,extractMode?.015:.008);
+    A.noiseGain.gain.setTargetAtTime(noiseBase*xm,now,.06);
     const lpc=Math.max(700,Math.min(6000, cur.lp*(P.lp/3785)));
     A.lp.frequency.setTargetAtTime(900+q*(lpc-900),now,.04);
     A.shaper.curve=tanhCurve(1.4+cur.art*(0.6+(1-fade)*0.8)*1.2*clean);
-    A.hetGain.gain.setTargetAtTime((P.het/1000)*cur.het*(0.5+(1-fade))*0.5*clean*xm,now,.05);
+    A.hetGain.gain.setTargetAtTime(hetBase*xm,now,.05);
     const hetF=cur.drift ? 600+320*Math.sin(T*0.07+cur.seed)+130*Math.sin(T*0.23+cur.seed*1.3) : 500+cur.q0*1400; // driftendes Pfeifen
     A.hetOsc.frequency.setTargetAtTime(hetF,now,.1);
     if(A.sweepGain){ // Sweep-Störer zieht periodisch durchs Band
       if(cur.sweep){ const ph=(T*0.09+cur.seed)%1, sf=350+ph*ph*4200; A.sweepOsc.frequency.setTargetAtTime(sf,now,.04); A.sweepGain.gain.setTargetAtTime(0.014*(0.4+P.fgLevel/100)*duckF*xm,now,.1); }
       else A.sweepGain.gain.setTargetAtTime(0,now,.1); }
-    if(frames++%6===0){ updateMeters(q,songLvl,noiseLvl,fgLvl); updateSNR(q); }
+    if(frames++%6===0){ updateMeters(q,songLvl*aud,noiseBase*xm,fgBase*xm); updateSNR(q); }
   }
   requestAnimationFrame(frame);
 })();
@@ -504,38 +514,34 @@ sl.forEach(item=>{
 updateRescueUI();
 applyPreset();
 
-// ===== MITSCHNITT (voller Empfang) & EXTRAKT (hoeren -> speichern/verwerfen) — v92 =====
-let recDiscard=false;
+// ===== MITSCHNITT (nimmt auf, was man hoert) & EXTRAKT-Hoermodus — v94 =====
 function fmtT(ms){ const sec=Math.floor(ms/1000); return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0"); }
 function recName(kind,ext){ const d=new Date(),p=n=>String(n).padStart(2,"0"); return cur.id+"_"+kind+"_"+d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+"."+ext; }
-function startRec(kind){
+function startRec(){
   ensure(); A.ctx.resume(); if(rec) return;
+  const kind=extractMode?"extrakt":"mitschnitt";
   const mt=(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported("audio/webm"))?"audio/webm":"";
   const ext=mt?"webm":"m4a";
   const chunks=[];
   try{ rec=mt?new MediaRecorder(A.recDest.stream,{mimeType:mt}):new MediaRecorder(A.recDest.stream); }
-  catch(e){ setStatus("Aufnahme nicht unterstützt"); rec=null; extractMode=false; updateRecUI(); return; }
+  catch(e){ setStatus("Aufnahme nicht unterstützt"); rec=null; updateRecUI(); return; }
   rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
-  rec.onstop=()=>{ if(!recDiscard){ const blob=new Blob(chunks,{type:mt||"audio/mp4"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=recName(kind,ext); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); } recDiscard=false; };
+  rec.onstop=()=>{ const blob=new Blob(chunks,{type:mt||"audio/mp4"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=recName(kind,ext); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); };
   rec.start(250); recKind=kind; recT0=Date.now();
   recTimer=setInterval(updateRecUI,250); updateRecUI();
 }
-function stopRec(discard){ if(!rec) return; recDiscard=!!discard; try{rec.stop();}catch(e){} rec=null; recKind=null; clearInterval(recTimer); recTimer=null; updateRecUI(); }
+function stopRec(){ if(!rec) return; try{rec.stop();}catch(e){} rec=null; recKind=null; clearInterval(recTimer); recTimer=null; updateRecUI(); }
+function setExtract(on){ ensure(); if(on) A.ctx.resume(); extractMode=on; updateRecUI(); }
 function updateRecUI(){
-  const bm=$("btnRecMix"), be=$("btnExt"), bx=$("btnExtX"); if(!bm||!be||!bx) return;
+  const bm=$("btnRecMix"), be=$("btnExt"); if(!bm||!be) return;
   const base="px-3 py-2 rounded border text-xs ";
-  const mixOn=(rec&&recKind==="mitschnitt");
-  bm.className=base+(mixOn?"border-red-500 text-red-400":"text-slate-400 border-slate-700 hover:border-amber-400 hover:text-amber-300");
-  bm.textContent=mixOn?"■ STOPP · "+fmtT(Date.now()-recT0):"● MITSCHNITT";
-  bm.disabled=extractMode; bm.style.opacity=extractMode?"0.4":"1";
+  bm.className=base+(rec?"border-red-500 text-red-400":"text-slate-400 border-slate-700 hover:border-amber-400 hover:text-amber-300");
+  bm.textContent=rec?"■ STOPP · "+fmtT(Date.now()-recT0)+(recKind==="extrakt"?" (Extrakt)":""):"● MITSCHNITT";
   be.className=base+(extractMode?"border-amber-400 text-amber-300":"text-slate-400 border-slate-700 hover:border-amber-400 hover:text-amber-300");
-  be.textContent=extractMode?"■ SPEICHERN · "+fmtT(Date.now()-recT0):"◉ EXTRAKT";
-  be.disabled=mixOn; be.style.opacity=mixOn?"0.4":"1";
-  bx.classList.toggle("hidden",!extractMode);
+  be.textContent=extractMode?"◉ EXTRAKT AN":"◉ EXTRAKT";
 }
-$("btnRecMix").addEventListener("click",()=>{ if(extractMode) return; (rec&&recKind==="mitschnitt")?stopRec(false):startRec("mitschnitt"); });
-$("btnExt").addEventListener("click",()=>{ if(rec&&recKind==="mitschnitt") return; if(!extractMode){ extractMode=true; startRec("extrakt"); } else { stopRec(false); extractMode=false; updateRecUI(); } });
-$("btnExtX").addEventListener("click",()=>{ if(!extractMode) return; stopRec(true); extractMode=false; updateRecUI(); });
+$("btnRecMix").addEventListener("click",()=>{ rec?stopRec():startRec(); });
+$("btnExt").addEventListener("click",()=>setExtract(!extractMode));
 function btnCls(active){ return "px-3 py-2 rounded border text-xs "+(active?"border-emerald-500 text-emerald-300":"border-slate-700 text-slate-400"); }
 function setMaster(on){ masterOn=on; if(A.ctx){ const t=A.ctx.currentTime; A.mOn.gain.setTargetAtTime(on?1:0,t,.03); A.mOff.gain.setTargetAtTime(on?0:1,t,.03);} const b=$("btnMaster"); b.textContent=on?"MASTER AN":"MASTER AUS"; b.className=btnCls(on); }
 
