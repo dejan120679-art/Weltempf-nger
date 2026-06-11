@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · PRESET-Modus (v95).
+  Weltempfänger – Werkbank SW · PRESET-Modus (v96).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v95</span>
+      <span class="text-amber-400 text-xs">v96</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -40,6 +40,7 @@
       <button id="play" class="px-4 py-2 rounded border border-emerald-600 text-emerald-400 hover:bg-emerald-950">▶ PLAY</button>
       <button id="btnRecMix" title="Nimmt auf, was du gerade hörst — im Extrakt-Modus das Skelett, sonst den vollen Empfang." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">● MITSCHNITT</button>
       <button id="btnExt" title="Hörmodus Wahrnehmungs-Extrakt: nur das, was durch den Rauschwald wirklich hörbar ist — Maskiertes bleibt Stille. Jederzeit an/aus; speichern über MITSCHNITT." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">◉ EXTRAKT</button>
+      <button id="btnFreeze" title="Friert den Empfangs-Zustand ein — Fading, Flattern, Störungs-Atmung bleiben auf diesem Moment stehen. Das Lied läuft weiter. Wirkt auch auf das Extrakt-Gate." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">❄ FREEZE</button>
       <span id="status" class="text-slate-400 text-xs ml-2">kein Lied geladen</span>
       <div class="mt-2 flex gap-2">
         <input id="streamUrl" type="text" placeholder="Webradio-Stream-URL (https://…)" class="flex-1 bg-black/40 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
@@ -202,6 +203,7 @@ const A={};
 let idx=0, cur=PRESETS[0], curR=null;
 let intfActive=0, playing=false, frames=0, night=false, curNr=0, curDuck=1, streamMode=false;
 let grainSrcMode="ALLES"; // v95: Quellen-Wahl fuer Macro-Granulator (MUSIK / STOER / ALLES), bleibt ueber Preset-Wechsel stehen
+let frozen=false, freezeT=0, physOff=0; // v96: FREEZE friert Empfangs-Physik (fade, breath, sweep, het-drift) auf virtuelle Zeit ein
 let rec=null, recKind=null, recT0=0, recTimer=null, extractMode=false; // Aufnahme (v90)
 const breath={t:0,v:1};
 
@@ -251,7 +253,11 @@ function ensure(){
   const chainGate=ctx.createGain(); chainGate.gain.value=1;
   const origGate=ctx.createGain(); origGate.gain.value=0;
   const origRaw=ctx.createGain(); origRaw.gain.value=1;
-  const dryDelay=ctx.createDelay(0.2); dryDelay.delayTime.value=0.012; origRaw.connect(dryDelay); dryDelay.connect(origGate);
+  const dryDelay=ctx.createDelay(0.2); dryDelay.delayTime.value=0.012; origRaw.connect(dryDelay);
+  // v96: Original-Pfad-Faerbung. Lowpass oeffnet sich mit Phase B des Dry/Wet-Reglers. Mono erzwungen.
+  const origLP=ctx.createBiquadFilter(); origLP.type="lowpass"; origLP.frequency.value=18000; origLP.Q.value=0.7;
+  origLP.channelCount=1; origLP.channelCountMode="explicit"; origLP.channelInterpretation="speakers";
+  dryDelay.connect(origLP); origLP.connect(origGate);
   const out=ctx.createGain(); out.gain.value=P.vol/100;
   // Verkabelung Empfänger
   bus.connect(wow); wow.connect(hp); hp.connect(lp); lp.connect(pkf); pkf.connect(shaper);
@@ -296,7 +302,7 @@ function ensure(){
   const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(bus); hetGain.connect(stoerSum); hetOsc.start();
   const sweepOsc=ctx.createOscillator(); sweepOsc.type="sawtooth"; sweepOsc.frequency.value=800;
   const sweepGain=ctx.createGain(); sweepGain.gain.value=0; sweepOsc.connect(sweepGain); sweepGain.connect(bus); sweepGain.connect(stoerSum); sweepOsc.start();
-  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,lim,mix,conv,revWet,del,delWet,safeBell,mHP,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,out,recDest,musicRing,stoerRing,stoerSum,musicTap,stoerTap,grainOut,noiseGain,noiseFilt,songGain,hetOsc,hetGain,sweepOsc,sweepGain,fg:null,fgSrc:null,fg2:null,fgSrc2:null,songBuf:null,songSrc:null,bufs:{}});
+  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,lim,mix,conv,revWet,del,delWet,safeBell,mHP,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,origLP,out,recDest,musicRing,stoerRing,stoerSum,musicTap,stoerTap,grainOut,noiseGain,noiseFilt,songGain,hetOsc,hetGain,sweepOsc,sweepGain,fg:null,fgSrc:null,fg2:null,fgSrc2:null,songBuf:null,songSrc:null,bufs:{}});
   applyControls(); startForeign();
   return A;
 }
@@ -314,9 +320,7 @@ function applyControls(){
   A.delWet.gain.setTargetAtTime((P.delay/100)*0.6,t,.06);
   A.wowDepth.gain.setTargetAtTime((P.wow/100)*0.0035,t,.06);
   A.crushShaper.curve=distCurve(P.crush/100);
-  const w=P.drywet/100;                                  // Dry=Original, Wet=bearbeiteter Empfang
-  A.chainGate.gain.setTargetAtTime(Math.sin(w*Math.PI/2),t,.03);
-  A.origGate.gain.setTargetAtTime(Math.cos(w*Math.PI/2),t,.03);
+  // v96: Dry/Wet-Mix wird in audioTick zusammen mit den Phase-A/B-Modifikatoren gesetzt (chainGate, origGate, origLP).
   A.out.gain.setTargetAtTime(P.vol/100,t,.05);
 }
 
@@ -344,7 +348,7 @@ function startForeign(){
 }
 function stopForeign(){ if(A.fgSrc){try{A.fgSrc.stop();}catch(e){}} if(A.fg){try{A.fg.disconnect();}catch(e){}} A.fgSrc=null; A.fg=null; if(A.fgSrc2){try{A.fgSrc2.stop();}catch(e){}} if(A.fg2){try{A.fg2.disconnect();}catch(e){}} A.fgSrc2=null; A.fg2=null; }
 
-function loadPreset(i){ idx=(i+PRESETS.length)%PRESETS.length; cur=PRESETS[idx]; curR=ctlRange(cur); stopForeign(); renderReadout(); if(A.ctx) startForeign(); applyPreset(); updateRescueUI(); }
+function loadPreset(i){ idx=(i+PRESETS.length)%PRESETS.length; cur=PRESETS[idx]; curR=ctlRange(cur); stopForeign(); renderReadout(); if(A.ctx) startForeign(); applyPreset(); updateRescueUI(); if(frozen){ frozen=false; physOff=0; freezeT=0; } updateFreezeUI(); }
 function renderReadout(){
   $("pid").textContent=cur.id;
   $("pidx").textContent=String(idx+1).padStart(2,"0")+" / "+PRESETS.length;
@@ -360,14 +364,17 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
 let lastQ=0, lastSong=0, lastNoise=0, lastIntf=0;
 function audioTick(){
   if(!(A.ctx && playing && cur)) return;
-  const now=A.ctx.currentTime, T=now, nr=isRescue(cur)?P.nr/100:0;
+  const now=A.ctx.currentTime;
+  // v96: virtuelle Physik-Zeit. FREEZE friert sie ein; sonst laeuft sie mit offsetkorrigiertem now weiter.
+  const T = frozen ? freezeT : (now - physOff);
+  const nr=isRescue(cur)?P.nr/100:0;
   curNr=nr;
   const cr=P.crush/100;
   const clean=1-nr*0.6;                                 // Rettung = Grundreinigung: Stoer-Quellen bis auf hoerbaren Rest (~40%), nie ganz weg
   const crushDuck=Math.pow(1-cr*0.7,1.2);               // Verzerrung schiebt Stör/Rausch reziprok runter
   const duckF=clean*crushDuck; curDuck=duckF;            // gemeinsamer Absenk-Faktor
   const nowMs=performance.now();
-  if(nowMs-breath.t>700){ breath.t=nowMs; breath.v=0.92+Math.random()*0.10; }
+  if(!frozen && nowMs-breath.t>700){ breath.t=nowMs; breath.v=0.92+Math.random()*0.10; } // v96: bei FREEZE bleibt breath.v stehen
   const m=parseInt(cur.band)||25, nf=Math.max(-1,Math.min(1,(m-31)/18));
   let prop=night?(1+nf*0.45):(1-nf*0.45); prop=Math.max(0.3,Math.min(1.4,prop));
   const effDepth=Math.max(0,Math.min(0.95, cur.fadeDepth*(P.breathe/50)));
@@ -376,9 +383,8 @@ function audioTick(){
   const q=Math.min(1,cur.q0*prop)*fade;
   const xm=extractMode?0:1;                              // EXTRAKT: Stoer-Quellen stumm, Musik nur soweit hoerbar (Maskierung)
   let fgBase=0, fg2Base=0;
-  if(A.fg){ const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55); fgBase=cur.foreign? gate*(P.fgLevel/100)*0.9*duckF:0; A.fg.gain.setTargetAtTime(fgBase*xm,now,.08); }
-  if(A.fg2){ const gate2=Math.max(0,(fade01(T,cur.seed+9)-0.5)/0.5); fg2Base=cur.foreign2? gate2*(P.fgLevel/100)*0.6*duckF:0; A.fg2.gain.setTargetAtTime(fg2Base*xm,now,.1); }
-  intfActive=fgBase*xm;
+  if(A.fg){ const gate=Math.max(0,(fade01(T,cur.seed+5)-0.45)/0.55); fgBase=cur.foreign? gate*(P.fgLevel/100)*0.9*duckF:0; }
+  if(A.fg2){ const gate2=Math.max(0,(fade01(T,cur.seed+9)-0.5)/0.5); fg2Base=cur.foreign2? gate2*(P.fgLevel/100)*0.6*duckF:0; }
   let songLvl=q*cur.gain*breath.v; songLvl=Math.max(0.04,songLvl);
   // an Verzerrung & Co. gekoppelt: hoher Drive -> Lied wird leise & flattert, manchmal kurz weg (kein festes Pausenmuster)
   const drive=Math.min(1, cr*0.8 + (P.noise/100)*0.3 + (P.fgLevel/100)*0.15);
@@ -386,8 +392,17 @@ function audioTick(){
   const wob=Math.pow(f1*0.55+f2*0.45, 1+drive*1.8);
   const flut=1-drive*(1-wob);
   songLvl*=(1-drive*0.35)*flut;
-  const noiseBase=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*duckF*0.5;
-  const hetBase=(P.het/1000)*cur.het*(0.5+(1-fade))*0.5*clean;
+  let noiseBase=(P.noise/100)*cur.noise*(0.12+(1-q)*0.85)*(1+(1-fade)*1.2)*(1.5-0.5*Math.min(1,prop))*duckF*0.5;
+  let hetBase=(P.het/1000)*cur.het*(0.5+(1-fade))*0.5*clean;
+  // v96 Dry/Wet als zusammenatmende Oeffnung. Zwei Phasen ueber den Regler:
+  // Phase A (w 1.0 -> 0.66): die Kette selbst oeffnet sich. Phase B (w 0.66 -> 0): das Original kommt, mit Fading gekoppelt.
+  const w=P.drywet/100;
+  const o=Math.max(0,Math.min(1,(1-w)/0.34));  // Phase-A-Oeffnung
+  const b=Math.max(0,Math.min(1,(0.66-w)/0.66)); // Phase-B-Original
+  noiseBase *= (1 - o*0.8);
+  hetBase  *= (1 - o*0.8);
+  fgBase   *= (1 - o*0.7);
+  fg2Base  *= (1 - o*0.7);
   // EXTRAKT = Wahrnehmungs-Extraktion: hoerbar bleibt nur, was ueber der Maskierungsschwelle des Ohrs liegt.
   // Startwerte, Feintuning nach Gehoer: Gate oeffnet ab snr 0.5, voll ab 2.0; absolute Hoerschwelle gleitet ab songLvl ~0.012 weich auf.
   let aud=1;
@@ -397,17 +412,29 @@ function audioTick(){
     aud=Math.max(0,Math.min(1,(snr-0.5)/1.5));        // Gate oeffnet ab snr 0.5, voll ab 2.0
     aud*=Math.max(0,Math.min(1,(songLvl-0.012)/0.04));
   }
+  if(A.fg)  A.fg.gain.setTargetAtTime(fgBase*xm,now,.08);
+  if(A.fg2) A.fg2.gain.setTargetAtTime(fg2Base*xm,now,.1);
+  intfActive=fgBase*xm;
   A.songGain.gain.setTargetAtTime((A.songBuf||streamMode)?songLvl*aud:0,now,extractMode?.015:.008);
   A.noiseGain.gain.setTargetAtTime(noiseBase*xm,now,.06);
-  const lpc=Math.max(700,Math.min(6000, cur.lp*(P.lp/3785)));
+  const lpcBase=Math.max(700,Math.min(6000, cur.lp*(P.lp/3785)));
+  const lpc=lpcBase*(1-o)+6000*o;                       // Phase A: LP-Decke oeffnet sich
   A.lp.frequency.setTargetAtTime(900+q*(lpc-900),now,.04);
-  A.shaper.curve=tanhCurve(1.4+cur.art*(0.6+(1-fade)*0.8)*1.2*clean);
+  let k=1.4+cur.art*(0.6+(1-fade)*0.8)*1.2*clean;
+  k=k*(1-o)+1.1*o;                                      // Phase A: Shaper-Drive Richtung mild
+  A.shaper.curve=tanhCurve(k);
   A.hetGain.gain.setTargetAtTime(hetBase*xm,now,.05);
   const hetF=cur.drift ? 600+320*Math.sin(T*0.07+cur.seed)+130*Math.sin(T*0.23+cur.seed*1.3) : 500+cur.q0*1400; // driftendes Pfeifen
   A.hetOsc.frequency.setTargetAtTime(hetF,now,.1);
   if(A.sweepGain){ // Sweep-Störer zieht periodisch durchs Band
     if(cur.sweep){ const ph=(T*0.09+cur.seed)%1, sf=350+ph*ph*4200; A.sweepOsc.frequency.setTargetAtTime(sf,now,.04); A.sweepGain.gain.setTargetAtTime(0.014*(0.4+P.fgLevel/100)*duckF*xm,now,.1); }
     else A.sweepGain.gain.setTargetAtTime(0,now,.1); }
+  // Phase B: Original-Pfad. Faerbung oeffnet sich; Atmung mit dem Empfaenger-Fade gekoppelt.
+  if(A.origLP) A.origLP.frequency.setTargetAtTime(3000+b*b*15000,now,.05);
+  const coupleDepth=(1-b)*0.9;
+  const origLvl=Math.sin(b*Math.PI/2)*((1-coupleDepth)+coupleDepth*fade);
+  if(A.origGate)  A.origGate.gain.setTargetAtTime(origLvl,now,.08);
+  if(A.chainGate) A.chainGate.gain.setTargetAtTime(Math.cos(b*Math.PI/2),now,.08); // Equal-Power auf Ketten-Seite
   lastQ=q; lastSong=songLvl*aud; lastNoise=noiseBase*xm; lastIntf=fgBase*xm;
 }
 setInterval(audioTick, 33);
@@ -548,7 +575,7 @@ const sl=[
   ["grain","Grain",0,100,"Macro-Granulator: unten subtiles Schimmern, Mitte ambiente Wolke, oben fast unkenntlich. Quelle wählbar: MUSIK / STÖR / ALLES. Körner laufen durch den Empfänger."],
   "AUSGANG",
   ["vol","Lautstärke",0,100,"Ausgangspegel."],
-  ["drywet","Dry / Wet",0,100,"Dry = Originallied, Wet = bearbeiteter Empfang. Stufenlos dazwischen."]
+  ["drywet","Dry / Wet",0,100,"Öffnet den Empfang: erst weicht die Kette (weniger Rauschen/Verzerrung), dann kommt das Original — gefärbt und mit dem Fading atmend, bis es ganz am Anschlag frei ist. Nie zwei Schichten."]
 ];
 sl.forEach(item=>{
   if(typeof item==="string"){ const h=document.createElement("div"); h.className="text-[10px] tracking-widest text-emerald-500/70 mt-3 mb-1"; h.textContent=item; $("sliders").appendChild(h); return; }
@@ -590,6 +617,19 @@ function startRec(){
 }
 function stopRec(){ if(!rec) return; try{rec.stop();}catch(e){} rec=null; recKind=null; clearInterval(recTimer); recTimer=null; updateRecUI(); }
 function setExtract(on){ ensure(); if(on) A.ctx.resume(); extractMode=on; updateRecUI(); }
+function setFreeze(on){
+  ensure(); if(on) A.ctx.resume();
+  const now=A.ctx.currentTime;
+  if(on && !frozen){ freezeT = now - physOff; frozen=true; }       // virtuelle Zeit auf jetzt einfrieren
+  else if(!on && frozen){ physOff = now - freezeT; frozen=false; } // Physik springt nicht: physOff nachfuehren
+  updateFreezeUI();
+}
+function updateFreezeUI(){
+  const b=$("btnFreeze"); if(!b) return;
+  const base="px-3 py-2 rounded border text-xs ";
+  b.className=base+(frozen?"border-amber-400 text-amber-300":"text-slate-400 border-slate-700 hover:border-amber-400 hover:text-amber-300");
+  b.textContent=frozen?"❄ FREEZE AN":"❄ FREEZE";
+}
 function updateRecUI(){
   const bm=$("btnRecMix"), be=$("btnExt"); if(!bm||!be) return;
   const base="px-3 py-2 rounded border text-xs ";
@@ -600,6 +640,7 @@ function updateRecUI(){
 }
 $("btnRecMix").addEventListener("click",()=>{ rec?stopRec():startRec(); });
 $("btnExt").addEventListener("click",()=>setExtract(!extractMode));
+$("btnFreeze").addEventListener("click",()=>setFreeze(!frozen));
 function btnCls(active){ return "px-3 py-2 rounded border text-xs "+(active?"border-emerald-500 text-emerald-300":"border-slate-700 text-slate-400"); }
 function setMaster(on){ masterOn=on; if(A.ctx){ const t=A.ctx.currentTime; A.mOn.gain.setTargetAtTime(on?1:0,t,.03); A.mOff.gain.setTargetAtTime(on?0:1,t,.03);} const b=$("btnMaster"); b.textContent=on?"MASTER AN":"MASTER AUS"; b.className=btnCls(on); }
 
