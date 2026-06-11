@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · PRESET-Modus (v98).
+  Weltempfänger – Werkbank SW · PRESET-Modus (v99).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v98</span>
+      <span class="text-amber-400 text-xs">v99</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -381,18 +381,10 @@ function applyControls(){
   applyRevSrc(); applyDelSrc();
   A.out.gain.setTargetAtTime(P.vol/100,t,.05);
 }
-function applyRevSrc(){
-  if(!A.ctx||!A.revInMusic) return;
-  const t=A.ctx.currentTime;
-  let m,s; if(revSrcMode==="MUSIK"){ m=1; s=0; } else if(revSrcMode==="STOER"){ m=0; s=1; } else { m=0.75; s=0.75; }
-  A.revInMusic.gain.setTargetAtTime(m,t,.05); A.revInStoer.gain.setTargetAtTime(s,t,.05);
-}
-function applyDelSrc(){
-  if(!A.ctx||!A.delInMusic) return;
-  const t=A.ctx.currentTime;
-  let m,s; if(delSrcMode==="MUSIK"){ m=1; s=0; } else if(delSrcMode==="STOER"){ m=0; s=1; } else { m=0.75; s=0.75; }
-  A.delInMusic.gain.setTargetAtTime(m,t,.05); A.delInStoer.gain.setTargetAtTime(s,t,.05);
-}
+// v99 Single-Writer: alle vier Effekt-Eingangs-Gains werden NUR von audioTick gesetzt.
+// Die Aufrufer aktualisieren weiter revSrcMode/delSrcMode; audioTick liest pro Frame.
+function applyRevSrc(){ /* no-op (siehe audioTick) */ }
+function applyDelSrc(){ /* no-op (siehe audioTick) */ }
 
 function loadAudio(name,cb){ if(!A.ctx||A.bufs[name]) return cb&&cb(); fetch("audio/"+name).then(r=>{if(!r.ok)throw 0;return r.arrayBuffer();}).then(b=>A.ctx.decodeAudioData(b)).then(buf=>{A.bufs[name]=buf; cb&&cb();}).catch(()=>{}); }
 function startForeign(){
@@ -498,11 +490,18 @@ function audioTick(){
   }
   // v97 F13: Stoer-Quellen-Gains ohne xm; Stummschaltung an stoerMute
   if(A.stoerMute) A.stoerMute.gain.setTargetAtTime(xm,now,.04);
-  // v98 Fix: Stoer-Eingaenge von Hall/Echo respektieren Extrakt-Stummschaltung (Grain bleibt bewusst ungefiltert)
+  // v99 Single-Writer: audioTick ist alleiniger Schreiber der vier Hall/Echo-Eingangs-Gains.
+  // Music-Seite ohne xm (das aud-Gate sitzt schon an songGain); Stoer-Seite × xm (Extrakt-Mute).
+  const revMusicBase = revSrcMode==="MUSIK"?1 : revSrcMode==="STOER"?0 : 0.75;
+  const delMusicBase = delSrcMode==="MUSIK"?1 : delSrcMode==="STOER"?0 : 0.75;
   const revStoerBase = revSrcMode==="MUSIK"?0 : revSrcMode==="STOER"?1 : 0.75;
   const delStoerBase = delSrcMode==="MUSIK"?0 : delSrcMode==="STOER"?1 : 0.75;
+  if(A.revInMusic) A.revInMusic.gain.setTargetAtTime(revMusicBase,now,.06);
+  if(A.delInMusic) A.delInMusic.gain.setTargetAtTime(delMusicBase,now,.06);
   if(A.revInStoer) A.revInStoer.gain.setTargetAtTime(revStoerBase*xm,now,.06);
   if(A.delInStoer) A.delInStoer.gain.setTargetAtTime(delStoerBase*xm,now,.06);
+  // v99 EXTRAKT absolut: Original-Koerner (grainDryOut) widersprechen dem Extrakt → × xm
+  if(A.grainDryOut) A.grainDryOut.gain.setTargetAtTime(0.8*xm,now,.06);
   if(A.fg)  A.fg.gain.setTargetAtTime(fgBase,now,.08);
   if(A.fg2) A.fg2.gain.setTargetAtTime(fg2Base,now,.1);
   A.songGain.gain.setTargetAtTime((A.songBuf||streamMode)?songLvl*aud:0,now,extractMode?.015:.008);
@@ -529,7 +528,7 @@ function audioTick(){
   const cd = 1 - og*og*0.95;
   const origLvl = Math.sin(og*Math.PI/2) * ((1-cd) + cd*fade);
   if(A.origLP) A.origLP.frequency.setTargetAtTime(baseLpcQ*(1-og*og) + 18000*og*og, now, .05);
-  if(A.origGate)  A.origGate.gain.setTargetAtTime(origLvl, now, .08);
+  if(A.origGate)  A.origGate.gain.setTargetAtTime(origLvl*xm, now, .08); // v99: Original im Extrakt absolut stumm (× xm)
   if(A.chainGate) A.chainGate.gain.setTargetAtTime(Math.cos(og*Math.PI/2), now, .08);
   lastQ=q; lastSong=songLvl*aud; lastNoise=noiseBase*xm; lastIntf=fgBase*xm;
 }
@@ -579,8 +578,9 @@ setInterval(audioTick, 33);
       dur=durMin+Math.random()*(durMax-durMin);
       len=Math.max(1,(dur*ctx.sampleRate)|0);
       // Quelle: F15 ALLES wuerfelt pro Korn
+      // v99 EXTRAKT absolut: ALLES wird im Extrakt zu MUSIK (kein STOER-Wuerfel)
       srcMode=grainSrcMode;
-      if(srcMode==="ALLES") srcMode=Math.random()<0.5?"MUSIK":"STOER";
+      if(srcMode==="ALLES") srcMode = extractMode ? "MUSIK" : (Math.random()<0.5?"MUSIK":"STOER");
       // F14 Original-Koerner: ab amt>0.4 waechst Original-Anteil linear 0..1
       useOrigBuf=false;
       if(srcMode==="MUSIK" && amt>0.4 && A.songBuf){
@@ -599,6 +599,8 @@ setInterval(audioTick, 33);
       }
       A.grainFreezeStart=start; A.grainFreezeLen=len; A.grainFreezeSrcMode=srcMode; A.grainFreezeUseOrig=useOrigBuf;
     }
+    // v99 EXTRAKT absolut: reiner STOER-Modus pausiert im Extrakt (kein Spawn, naechster gap normal geplant)
+    if(!(extractMode && srcMode==="STOER")){
     const buf=ctx.createBuffer(1,len,ctx.sampleRate), d=buf.getChannelData(0);
     // Reverse-Chance: 0/25/40 % je nach amt
     let revP=0;
@@ -637,6 +639,7 @@ setInterval(audioTick, 33);
     g.connect(useOrigBuf?A.grainDryOut:A.grainOut);
     try{ srcN.start(t); }catch(e){}
     srcN.onended=()=>{ try{g.disconnect();}catch(e){} };
+    } // v99 STOER-Skip-Wrapper Ende
   }
   const gap=P.grain>0 ? (180-(180-35)*(P.grain/100))+Math.random()*40 : 250;
   setTimeout(grains, gap);
