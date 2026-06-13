@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · TUNING-Modus (v102).
+  Weltempfänger – Werkbank SW · TUNING-Modus (v103).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v102</span>
+      <span class="text-amber-400 text-xs">v103</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -805,13 +805,18 @@ function audioTick(){
   if(A.sweepGain){
     if(cur.sweep){ const ph=(T*0.09+cur.seed)%1, sf=350+ph*ph*4200; A.sweepOsc.frequency.setTargetAtTime(sf,now,.04); A.sweepGain.gain.setTargetAtTime(0.014*(0.4+P.fgLevel/100)*duckF,now,.1); }
     else A.sweepGain.gain.setTargetAtTime(0,now,.1); }
-  // v98 Original-Pfad — wachsende Mit-Welle, gefaerbt und gekoppelt
-  const og = Math.pow(Math.max(0,(r-0.08)/0.92), 1.35);
-  const cd = 1 - og*og*0.95;
+  // v103 Dry/Wet — Stille-Bug weg, equal-power gegen Mitten-Senke, organischere Kopplung.
+  // Extrakt+Dry aufgeloest: Original folgt ALLEIN Dry/Wet (kein *xm); Extrakt steuert weiter
+  // das Skelett-Gate auf dem Empfaengerpfad (songGain*aud unveraendert). Bei drywet=100 ist og=0
+  // → origLvl=0, Original bleibt aus. Richtung dry oeffnet das Original — gewollt.
+  const og = Math.pow(Math.max(0,(r-0.04)/0.96), 1.1);   // v103: frueheres, weicheres Einsickern
+  const cd = 1 - Math.pow(og,1.6)*0.9;                    // v103: QSB-Kopplung laenger voll
   const origLvl = Math.sin(og*Math.PI/2) * ((1-cd) + cd*fade);
-  if(A.origLP) A.origLP.frequency.setTargetAtTime(baseLpcQ*(1-og*og) + 18000*og*og, now, .05);
-  if(A.origGate)  A.origGate.gain.setTargetAtTime(origLvl*xm, now, .08); // v99: Original im Extrakt absolut stumm (× xm)
-  if(A.chainGate) A.chainGate.gain.setTargetAtTime(Math.cos(og*Math.PI/2), now, .08);
+  // v103: Faerbung an die aktuelle effektive Empfangs-LP (baseLpcQ) koppeln, erst spaet oeffnen
+  if(A.origLP) A.origLP.frequency.setTargetAtTime((900 + q*(baseLpcQ-900))*(1-og*og) + 18000*og*og, now, .05);
+  if(A.origGate)  A.origGate.gain.setTargetAtTime(origLvl, now, .08); // v103: kein *xm — Dry/Wet gewinnt
+  // v103 equal-power: Empfaengerpfad nicht ganz schliessen solange og<1 (Mindestwert 0.04*(1-og))
+  if(A.chainGate) A.chainGate.gain.setTargetAtTime(Math.max(0.04*(1-og), Math.cos(og*Math.PI/2)), now, .08);
   // v100 Geister: pro Band 6-10 schmale Glocken ±3 kHz; gain via Distanz × Tag/Nacht-Band-Faktor
   ensureBandGhosts(bandSel);
   const ghosts=bandGhosts[bandSel];
