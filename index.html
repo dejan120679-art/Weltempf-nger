@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · TUNING-Modus (v100).
+  Weltempfänger – Werkbank SW · TUNING-Modus (v101).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v100</span>
+      <span class="text-amber-400 text-xs">v101</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -57,18 +57,25 @@
       </div>
       <div class="flex flex-col gap-2 mb-3">
         <div class="flex items-center gap-1 flex-wrap">
+          <button id="btnModeToggle" title="Wechselt zwischen Tuning-Landschaft (BAND) und Stationsliste (PRESETS)." class="px-3 py-2 rounded border border-amber-400 text-xs text-amber-300">▤ BAND</button>
           <button id="bandSW1" class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-300 hover:border-amber-400 hover:text-amber-300">SW1</button>
           <button id="bandSW2" class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-300 hover:border-amber-400 hover:text-amber-300">SW2</button>
           <button id="bandSW3" class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-300 hover:border-amber-400 hover:text-amber-300">SW3</button>
           <button id="bandSW4" class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-300 hover:border-amber-400 hover:text-amber-300">SW4</button>
           <button id="bandFM" disabled title="FM — später" class="px-3 py-2 rounded border border-slate-800 text-xs text-slate-600 opacity-50 cursor-not-allowed">FM</button>
-          <button id="btnScan" title="Sucht aufwärts (wrap im Band) zur nächsten Station mit Potenzial. Animiert über ~1.5 s." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">⇄ SCAN</button>
+          <button id="btnScan" title="BAND: animierter Suchlauf aufwärts zur nächsten Station mit Potenzial. PRESETS: nächste Station der Liste." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-400 hover:border-amber-400 hover:text-amber-300">⇄ SCAN</button>
           <div class="ml-3 text-[10px] tracking-widest text-slate-500">STATION</div>
           <div class="text-slate-300 disp"><span id="pid">—</span> · <span id="pidx">—</span> · <span id="prxDisp" class="text-emerald-400">—</span></div>
         </div>
-        <div class="flex items-center gap-2">
+        <div id="bandTuneRow" class="flex items-center gap-2">
           <input id="tuneSlider" type="range" min="5200" max="10000" step="1" value="6075" class="flex-1" title="">
           <span class="text-amber-400 disp text-base"><span id="tuneDisp">6075</span> kHz</span>
+        </div>
+        <div id="presetsRow" class="hidden items-center gap-1 flex-wrap">
+          <button id="prev" title="Vorherige Station in der Liste." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-300 hover:border-amber-400 hover:text-amber-300">◄</button>
+          <button id="next" title="Nächste Station in der Liste." class="px-3 py-2 rounded border border-slate-700 text-xs text-slate-300 hover:border-amber-400 hover:text-amber-300">►</button>
+          <span class="ml-2 text-[10px] tracking-widest text-slate-500">DIREKT</span>
+          <span id="presetsList" class="flex items-center gap-1 flex-wrap"></span>
         </div>
       </div>
       <div class="rounded-md bg-black/60 border border-slate-800 px-4 py-3">
@@ -152,19 +159,30 @@ function seededRng(seedStr){
   let s=0; for(let i=0;i<seedStr.length;i++) s=(s*31+seedStr.charCodeAt(i))|0;
   return ()=>{ s=(s*0x6D2B79F5+1)|0; return ((s>>>16)&0x7FFF)/0x7FFF; };
 }
-// Asymmetrische Empfangs-Glocke: rx=1 im Kern (|off|<cap*0.25), cos-Abfall auf 0 bei cap.
-// Rechte Flanke cap*(0.75+seedV), linke cap*(0.75-seedV). seedV = seed*0.025.
+// v101: Variante B — capture aus Band-Spacing (überlappende Glocken, keine Totzonen).
+// spacing = bandBreite/Anzahl Stationen, capture = spacing*0.75 (min 40 kHz),
+// core = capture*0.12 (schmaler Sweet-Spot), Asymmetrie via seedV.
+const bandStationCount={};
+for(const _b in BANDS){
+  bandStationCount[_b]=PRESETS.filter(p=>p.freq>=BANDS[_b].min && p.freq<=BANDS[_b].max).length;
+}
+function captureFor(stationIdx){
+  const p=PRESETS[stationIdx]; if(!p) return 40;
+  const b=bandOf(p.freq); if(!b) return 40;
+  const bw=BANDS[b].max-BANDS[b].min;
+  const n=bandStationCount[b]||1;
+  const spacing=bw/n;
+  return Math.max(40, spacing*0.75);
+}
 function computeRx(off,cap,seed){
   const seedV=(seed||0)*0.025;
-  const flankR=cap*(0.75+seedV), flankL=cap*(0.75-seedV);
-  const core=cap*0.25;
+  const core=cap*0.12;                       // v101: schmaler Kern
+  const flankR=cap*(1+seedV), flankL=cap*(1-seedV); // v101: Glocke reicht voll bis cap (asymm.)
   const a=Math.abs(off);
   if(a<core) return 1;
   const flank=off>=0?flankR:flankL;
-  if(a>=cap) return 0;
-  // cos-Abfall: a=core → 1, a=cap → 0
+  if(a>=flank) return 0;
   const t=(a-core)/Math.max(1e-6,flank-core);
-  if(t>=1) return 0;
   return 0.5*(1+Math.cos(Math.PI*t));
 }
 // Geister-Generator: pro Band 6–10 Pseudo-Zufalls-Frequenzen + Snippet aus POOL.
@@ -279,6 +297,7 @@ let lastK=null; // v97: tanhCurve-Cache fuer Shaper
 let bandSel="SW2", tuneKhz=6075; // v100: aktives Band + Tuning-Frequenz (Default = STN-01)
 const bandGhosts={}; // v100: pro Band 6-10 Geister, lazy initialisiert
 let scanTimer=null;  // v100: SCAN-Animation
+let viewMode="BAND"; // v101: "BAND" (Tuning-Landschaft, default) | "PRESETS" (Stationsliste)
 const breath={t:0,v:1};
 
 const $=id=>document.getElementById(id);
@@ -539,8 +558,61 @@ function setBand(b){
   updateTuneUI();
   ensureBandGhosts(b);
 }
-// v100 SCAN: animiertes Aufwaerts-Suchen zur nächsten Station mit Potenzial
+// v101 Modus-Umschalter: BAND (Tuning-Landschaft) ⇄ PRESETS (Stationsliste)
+function updateModeUI(){
+  const btr=$("bandTuneRow"), prr=$("presetsRow"), tgl=$("btnModeToggle");
+  const bands=["bandSW1","bandSW2","bandSW3","bandSW4","bandFM"];
+  if(viewMode==="BAND"){
+    if(btr){ btr.classList.remove("hidden"); btr.classList.add("flex"); }
+    if(prr){ prr.classList.add("hidden"); prr.classList.remove("flex"); }
+    if(tgl) tgl.textContent="▤ BAND";
+    bands.forEach(id=>{ const el=$(id); if(el) el.classList.remove("hidden"); });
+  } else {
+    if(btr){ btr.classList.add("hidden"); btr.classList.remove("flex"); }
+    if(prr){ prr.classList.remove("hidden"); prr.classList.add("flex"); }
+    if(tgl) tgl.textContent="☰ PRESETS";
+    // Band-Buttons im PRESETS-Modus ausblenden (Band ergibt sich aus gewaehlter Station)
+    bands.forEach(id=>{ const el=$(id); if(el) el.classList.add("hidden"); });
+  }
+}
+function renderPresetsList(){
+  const wrap=$("presetsList"); if(!wrap) return;
+  wrap.innerHTML="";
+  for(let i=0;i<PRESETS.length;i++){
+    const p=PRESETS[i];
+    const btn=document.createElement("button");
+    btn.textContent=p.id;
+    btn.title=p.id+" · "+p.freq+" kHz · "+(p.place||"");
+    btn.className="px-2 py-1 rounded border text-[10px] "+(i===idx?"border-amber-400 text-amber-300":"border-slate-700 text-slate-400 hover:border-amber-400 hover:text-amber-300");
+    btn.addEventListener("click",()=>{ loadPreset(i); renderPresetsList(); });
+    wrap.appendChild(btn);
+  }
+}
+function setMode(m){
+  if(m!=="BAND" && m!=="PRESETS") return;
+  if(viewMode===m) return;
+  viewMode=m;
+  if(m==="BAND"){
+    // Auf cur.freq springen, Band auf cur's Band setzen
+    const b=bandOf(cur.freq);
+    if(b){ bandSel=b; tuneKhz=cur.freq; }
+    updateTuneUI();
+    ensureBandGhosts(bandSel);
+  } else {
+    // PRESETS: zuletzt gefangene Station bleibt markiert
+    renderPresetsList();
+  }
+  updateModeUI();
+}
+// v100 SCAN: animiertes Aufwaerts-Suchen zur nächsten Station mit Potenzial.
+// v101: im PRESETS-Modus nächste Station der Liste (kein Tune-Animations-Lauf).
 function startScan(){
+  if(viewMode==="PRESETS"){
+    if(PRESETS.length<2) return;
+    loadPreset((idx+1)%PRESETS.length);
+    renderPresetsList();
+    return;
+  }
   if(scanTimer){ clearInterval(scanTimer); scanTimer=null; }
   const b=BANDS[bandSel];
   // Naechste Station aufwaerts (mit Wrap) deren Potenzial (Tag/Nacht-Faktor) > 0.3
@@ -586,40 +658,43 @@ function audioTick(){
   const now=A.ctx.currentTime;
   // v96: virtuelle Physik-Zeit. FREEZE friert sie ein.
   const T = frozen ? freezeT : (now - physOff);
-  // === v100 TUNING-Schritt: rx aus Glocke berechnen, neuer Fang bei rx>0.1 für ANDERE Station, Bleed außerhalb ===
+  // === v101 TUNING/PRESETS-Schritt ===
   const tNFactor = bandNightFactor(bandSel, night);
   let rxMain = 0, off = 0, bleedActive = false;
-  // rx für die aktuell gefangene Station, falls im selben Band
-  if(bandOf(cur.freq)===bandSel){
-    off = tuneKhz - cur.freq;
-    const capCur = 6 + cur.gain*8;
-    rxMain = computeRx(off, capCur, cur.seed);
-  }
-  // Neuer Fang? Suche beste Station im aktuellen Band mit Hysterese (>0.5 oder rxMain<0.05 && >0.1)
-  let bestNew=-1, bestNewRx=0;
-  for(let i=0;i<PRESETS.length;i++){
-    if(bandOf(PRESETS[i].freq)!==bandSel) continue;
-    if(i===idx) continue;
-    const off2=tuneKhz-PRESETS[i].freq;
-    const cap2=6+PRESETS[i].gain*8;
-    const rx2=computeRx(off2, cap2, PRESETS[i].seed);
-    if(rx2>bestNewRx){ bestNewRx=rx2; bestNew=i; }
-  }
-  if(bestNew>=0 && (bestNewRx>0.5 || (bestNewRx>0.1 && rxMain<0.05))){
-    loadPreset(bestNew);
-    return; // dieser Frame uebersprungen, naechster Tick verwendet neue cur
-  }
-  // Bleed: ausserhalb capture, aber Nachbar innerhalb 2.5*capture
-  if(rxMain<0.1){
-    const near=nearestStationInBand(tuneKhz, bandSel);
-    if(near){
-      const np=PRESETS[near.idx];
-      const off_n=tuneKhz-np.freq;
-      const cap_n=6+np.gain*8;
-      if(Math.abs(off_n)<2.5*cap_n){
-        const bell=computeRx(off_n*0.4, cap_n, np.seed); // glocke(off/2.5)
-        const rxBleed=0.12*bell;
-        if(rxBleed>rxMain){ rxMain=rxBleed; bleedActive=true; }
+  if(viewMode==="PRESETS"){
+    // PRESETS-Modus: rx fest 1, kein Glocken/Bleed/Capture-Check
+    rxMain = 1;
+  } else {
+    // BAND-Modus: rx für aktuell gefangene Station (im selben Band)
+    if(bandOf(cur.freq)===bandSel){
+      off = tuneKhz - cur.freq;
+      rxMain = computeRx(off, captureFor(idx), cur.seed);
+    }
+    // Neuer Fang? Suche beste Station im aktuellen Band (Hysterese >0.5 oder rxMain<0.05 & >0.1)
+    let bestNew=-1, bestNewRx=0;
+    for(let i=0;i<PRESETS.length;i++){
+      if(bandOf(PRESETS[i].freq)!==bandSel) continue;
+      if(i===idx) continue;
+      const off2=tuneKhz-PRESETS[i].freq;
+      const rx2=computeRx(off2, captureFor(i), PRESETS[i].seed);
+      if(rx2>bestNewRx){ bestNewRx=rx2; bestNew=i; }
+    }
+    if(bestNew>=0 && (bestNewRx>0.5 || (bestNewRx>0.1 && rxMain<0.05))){
+      loadPreset(bestNew);
+      return;
+    }
+    // v101 Bleed: ausserhalb capture, Nachbar innerhalb 1.5*capture (Spec-Wert)
+    if(rxMain<0.1){
+      const near=nearestStationInBand(tuneKhz, bandSel);
+      if(near){
+        const np=PRESETS[near.idx];
+        const off_n=tuneKhz-np.freq;
+        const cap_n=captureFor(near.idx);
+        if(Math.abs(off_n)<1.5*cap_n){
+          const bell=computeRx(off_n/1.5, cap_n, np.seed); // glocke(off/1.5)
+          const rxBleed=0.12*bell;
+          if(rxBleed>rxMain){ rxMain=rxBleed; bleedActive=true; }
+        }
       }
     }
   }
@@ -1099,11 +1174,14 @@ $("play").addEventListener("click",togglePlay);
 $("btnStream").addEventListener("click",()=>loadStream($("streamUrl").value.trim()));
 $("streamUrl").addEventListener("keydown",e=>{ if(e.key==="Enter") loadStream($("streamUrl").value.trim()); });
 $("btnMaster").addEventListener("click",()=>setMaster(!masterOn));
-// v100: prev/next entfernt — Band-Buttons + Tune-Slider übernehmen
+// v101: Mode-Toggle + Band-Buttons + Tune-Slider + prev/next (PRESETS-Modus)
+$("btnModeToggle").addEventListener("click",()=>setMode(viewMode==="BAND"?"PRESETS":"BAND"));
 ["SW1","SW2","SW3","SW4"].forEach(b=>{
   $("band"+b).addEventListener("click",()=>setBand(b));
 });
 $("tuneSlider").addEventListener("input",e=>setTuneKhz(+e.target.value));
+$("prev").addEventListener("click",()=>{ loadPreset((idx-1+PRESETS.length)%PRESETS.length); renderPresetsList(); });
+$("next").addEventListener("click",()=>{ loadPreset((idx+1)%PRESETS.length); renderPresetsList(); });
 $("daynight").addEventListener("click",()=>{ night=!night; const b=$("daynight"); b.textContent=night?"☾ NACHT":"☀ TAG"; b.className="px-2 py-1 text-xs rounded border "+(night?"border-indigo-400 text-indigo-300":"border-amber-400 text-amber-300"); });
 $("file").addEventListener("change",e=>{ if(e.target.files[0]) loadSong(e.target.files[0]); });
 const drop=$("drop");
@@ -1113,6 +1191,7 @@ drop.addEventListener("drop",e=>{ e.preventDefault(); drop.className="block bord
 
 renderReadout();
 updateTuneUI(); // v100: initiale Band-Highlights, Slider min/max/value, tuneDisp, Stations-Title
+updateModeUI(); renderPresetsList(); // v101: BAND default sichtbar, PRESETS-Liste vorbereitet
 </script>
 </body>
 </html>
