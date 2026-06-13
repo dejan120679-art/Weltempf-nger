@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · TUNING-Modus (v103).
+  Weltempfänger – Werkbank SW · TUNING-Modus (v104).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v103</span>
+      <span class="text-amber-400 text-xs">v104</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -509,12 +509,15 @@ function activateGhost(g){
     const src=A.ctx.createBufferSource();
     src.buffer=A.bufs[g.snippet]; src.loop=true;
     const filt=A.ctx.createBiquadFilter();
-    filt.type="bandpass"; filt.frequency.value=1500; filt.Q.value=2.5;
+    // v104: Bandpass-Frequenz ortsfest aus g.freq (reproduzierbare Faerbung)
+    filt.type="bandpass"; filt.frequency.value=800 + (g.freq % 1000) * 1.2; filt.Q.value=2.5;
     const gain=A.ctx.createGain(); gain.gain.value=0;
     gain.channelCount=1; gain.channelCountMode="explicit"; gain.channelInterpretation="speakers";
     src.connect(filt); filt.connect(gain);
     gain.connect(A.stoerCollect||A.bus); // Geister via Stoer-Pfad (Extrakt-mute, Hall/Echo-Stör-Eingang verfügbar)
-    try{ src.start(0, Math.random()*src.buffer.duration); }catch(e){}
+    // v104: deterministische Start-Position aus g.freq — jeder Vorbeidrehen = gleiche Stelle
+    const startOff = (g.freq * 7.13) % 1;
+    try{ src.start(0, startOff * src.buffer.duration); }catch(e){}
     g.src=src; g.filt=filt; g.gain=gain;
   });
 }
@@ -614,30 +617,25 @@ function startScan(){
     return;
   }
   if(scanTimer){ clearInterval(scanTimer); scanTimer=null; }
+  // v104: echter Banddurchlauf — 4 kHz/Tick aufwaerts, audioTick rastet automatisch
+  // bei rx>0.5 (Hysterese). Wrap am Bandende. Stop bei idx-Wechsel (= Einrasten).
   const b=BANDS[bandSel];
-  // Naechste Station aufwaerts (mit Wrap) deren Potenzial (Tag/Nacht-Faktor) > 0.3
-  let bestIdx=-1, bestDist=Infinity;
-  const tNF=bandNightFactor(bandSel,night);
-  for(let i=0;i<PRESETS.length;i++){
-    if(bandOf(PRESETS[i].freq)!==bandSel) continue;
-    if(tNF<0.3) continue;
-    let d=PRESETS[i].freq-tuneKhz;
-    if(d<=0) d+=(b.max-b.min); // wrap
-    if(d<bestDist){ bestDist=d; bestIdx=i; }
-  }
-  if(bestIdx<0) return;
-  const targetKhz=PRESETS[bestIdx].freq;
-  const startKhz=tuneKhz;
-  const totalMs=1500, stepMs=33, steps=Math.round(totalMs/stepMs);
-  let dist = (targetKhz>startKhz)?(targetKhz-startKhz):((b.max-startKhz)+(targetKhz-b.min)+1);
+  const scanStepKhz=4;
+  const scanStartIdx=idx;
+  const maxSteps=Math.ceil((b.max-b.min)/scanStepKhz)+5; // Safety: max. ein voller Banddurchlauf
   let step=0;
   scanTimer=setInterval(()=>{
     step++;
-    let nv=startKhz+(dist*step/steps);
-    if(nv>b.max) nv = b.min + (nv-b.max);
+    let nv=tuneKhz+scanStepKhz;
+    if(nv>b.max) nv=b.min+(nv-b.max);
     setTuneKhz(nv);
-    if(step>=steps){ clearInterval(scanTimer); scanTimer=null; setTuneKhz(targetKhz); }
-  },stepMs);
+    if(idx!==scanStartIdx){ // audioTick hat eingerastet
+      clearInterval(scanTimer); scanTimer=null;
+      setTuneKhz(PRESETS[idx].freq);
+    } else if(step>=maxSteps){
+      clearInterval(scanTimer); scanTimer=null;
+    }
+  },33);
 }
 function renderReadout(){
   $("pid").textContent=cur.id;
@@ -653,11 +651,12 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
 // v95: Audio-Modulation laeuft per setInterval (laeuft auch bei verstecktem Tab,
 // Browser drosselt auf ~1s im Hintergrund — akzeptiert). UI-Updates separat per rAF.
 let lastQ=0, lastSong=0, lastNoise=0, lastIntf=0, lastRx=0; // v100: lastRx fuer prxDisp
-// v102: Pegel-Kompression (Variante A) — Distanz-Reihenfolge bleibt, Spreizung 2.0×→1.6×.
-// Wurzel-Mix zieht zusammen; Mix-Bereich der 24 Stationen ~0.604..1.0 → 0.62..1.0.
+let lastDisplayIdx=0, lastDisplayRx=0; // v104: live Readout — staerkste sichtbare Station beim Tunen
+// v104: Pegel-Kompression — fern wieder hoerbar leiser, nah ohne Schmerzspitzen.
+// Mix Richtung Original verschoben (0.35*c+0.65*g), Boden 0.50 statt 0.62.
 function gainComp(g){
-  const c=Math.sqrt(g), m=0.5*c+0.5*g;
-  return 0.62 + (m-0.604)/(1.0-0.604)*(1.0-0.62);
+  const c=Math.sqrt(g), m=0.35*c+0.65*g;
+  return 0.50 + (m-0.531)/(1.0-0.531)*(1.0-0.50);
 }
 function audioTick(){
   if(!(A.ctx && playing && cur)) return;
@@ -670,6 +669,7 @@ function audioTick(){
   if(viewMode==="PRESETS"){
     // PRESETS-Modus: rx fest 1, kein Glocken/Bleed/Capture-Check
     rxMain = 1;
+    lastDisplayIdx = idx; lastDisplayRx = 1; // v104
   } else {
     // BAND-Modus: rx für aktuell gefangene Station (im selben Band)
     if(bandOf(cur.freq)===bandSel){
@@ -685,6 +685,9 @@ function audioTick(){
       const rx2=computeRx(off2, captureFor(i), PRESETS[i].seed);
       if(rx2>bestNewRx){ bestNewRx=rx2; bestNew=i; }
     }
+    // v104 live Readout — staerkste sichtbare Station (auch ohne Einrasten)
+    if(bestNewRx > rxMain){ lastDisplayIdx = bestNew; lastDisplayRx = bestNewRx; }
+    else { lastDisplayIdx = idx; lastDisplayRx = rxMain; }
     // v101 Fix: nur wechseln, wenn neue Station rxMain klar uebertrifft — sonst Endlos-Flimmern
     if(bestNew>=0 && bestNewRx > rxMain + 0.15 && bestNewRx > 0.5){
       loadPreset(bestNew);
@@ -837,6 +840,18 @@ setInterval(audioTick, 33);
     if(frames++%6===0){
       updateMeters(lastQ,lastSong,lastNoise,lastIntf); updateSNR(lastQ);
       const px=$("prxDisp"); if(px) px.textContent = lastRx>0.01?("rx "+Math.round(lastRx*100)+"%"):"—"; // v100
+      // v104: pid/pidx folgen beim Tunen der staerksten sichtbaren Station; in der Leere "— kein Sender —"
+      const pidEl=$("pid"), pixEl=$("pidx");
+      if(pidEl && pixEl){
+        if(viewMode==="BAND" && lastDisplayRx<=0.1){
+          pidEl.textContent="— kein Sender —"; pixEl.textContent="—";
+        } else {
+          const di = (viewMode==="BAND" && lastDisplayRx>0.1) ? lastDisplayIdx : idx;
+          const p = PRESETS[di];
+          pidEl.textContent = p.id;
+          pixEl.textContent = String(di+1).padStart(2,"0")+" / "+PRESETS.length;
+        }
+      }
     }
   }
   requestAnimationFrame(uiTick);
