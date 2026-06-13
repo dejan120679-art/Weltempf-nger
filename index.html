@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · TUNING-Modus (v104).
+  Weltempfänger – Werkbank SW · TUNING-Modus (v105).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v104</span>
+      <span class="text-amber-400 text-xs">v105</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -200,7 +200,8 @@ function generateGhosts(bandName){
     const cat=cats[Math.floor(rng()*cats.length)];
     const pool=POOL[cat];
     const snippet=pool&&pool.length?pool[Math.floor(rng()*pool.length)]:null;
-    ghosts.push({freq:f, snippet:snippet, src:null, filt:null, gain:null});
+    // v105: g.t0 = deterministischer Phasen-Startpunkt (s) — feste Identitaet, durchlaufende Zeit
+    ghosts.push({freq:f, snippet:snippet, t0:((f*7.13)%1)*1000, src:null, filt:null, gain:null});
   }
   return ghosts;
 }
@@ -361,7 +362,7 @@ function ensure(){
   const origLP=ctx.createBiquadFilter(); origLP.type="lowpass"; origLP.frequency.value=18000; origLP.Q.value=0.7;
   origLP.channelCount=1; origLP.channelCountMode="explicit"; origLP.channelInterpretation="speakers";
   dryDelay.connect(origLP); origLP.connect(origGate);
-  const out=ctx.createGain(); out.gain.value=P.vol/100;
+  const out=ctx.createGain(); out.gain.value=(P.vol/100)*0.8; // v105: Master-Trim ×0.8 (Gesamtpegel ~20% leiser)
   // v97: Stoer-Sammelknoten — Stummschaltung erst HIER, nicht an Quellen (Grain-Tap sieht volles Signal)
   const stoerCollect=ctx.createGain(); stoerCollect.gain.value=1;
   const stoerMute=ctx.createGain(); stoerMute.gain.value=1;
@@ -464,7 +465,7 @@ function applyControls(){
   A.warmShelf.gain.setTargetAtTime((P.warm/100)*warmMax, t, .06);
   // v98 Hall/Echo Quellen-Routing (MUSIK/STOER/ALLES — gain je 1/0, 0/1, 0.75/0.75)
   applyRevSrc(); applyDelSrc();
-  A.out.gain.setTargetAtTime(P.vol/100,t,.05);
+  A.out.gain.setTargetAtTime((P.vol/100)*0.8,t,.05); // v105: Master-Trim ×0.8
 }
 // v99 Single-Writer: alle vier Effekt-Eingangs-Gains werden NUR von audioTick gesetzt.
 // Die Aufrufer aktualisieren weiter revSrcMode/delSrcMode; audioTick liest pro Frame.
@@ -515,9 +516,10 @@ function activateGhost(g){
     gain.channelCount=1; gain.channelCountMode="explicit"; gain.channelInterpretation="speakers";
     src.connect(filt); filt.connect(gain);
     gain.connect(A.stoerCollect||A.bus); // Geister via Stoer-Pfad (Extrakt-mute, Hall/Echo-Stör-Eingang verfügbar)
-    // v104: deterministische Start-Position aus g.freq — jeder Vorbeidrehen = gleiche Stelle
-    const startOff = (g.freq * 7.13) % 1;
-    try{ src.start(0, startOff * src.buffer.duration); }catch(e){}
+    // v105: durchlaufende Zeit — Offset = (g.t0 + Echtzeit) % duration; danach loop=true,
+    // Quelle wird NIE gestoppt (nur gain=0 in der Ferne) → Position wandert mit Wallclock.
+    const offset = (g.t0 + A.ctx.currentTime) % src.buffer.duration;
+    try{ src.start(0, offset); }catch(e){}
     g.src=src; g.filt=filt; g.gain=gain;
   });
 }
@@ -688,8 +690,11 @@ function audioTick(){
     // v104 live Readout — staerkste sichtbare Station (auch ohne Einrasten)
     if(bestNewRx > rxMain){ lastDisplayIdx = bestNew; lastDisplayRx = bestNewRx; }
     else { lastDisplayIdx = idx; lastDisplayRx = rxMain; }
-    // v101 Fix: nur wechseln, wenn neue Station rxMain klar uebertrifft — sonst Endlos-Flimmern
-    if(bestNew>=0 && bestNewRx > rxMain + 0.15 && bestNewRx > 0.5){
+    // v101 Fix: Fang-Hysterese gegen Flimmern (rxMain + 0.15, > 0.5).
+    // v105 SCAN: waehrend scanTimer aktiv KEIN Festhalten an cur — Hysterese aus,
+    // dafuer Schwelle hoch (0.85) → neue Station erst am Kern fangen, dazwischen Durchquerung hoerbar.
+    const scanActive = !!scanTimer;
+    if(bestNew>=0 && (scanActive ? bestNewRx > 0.85 : (bestNewRx > rxMain + 0.15 && bestNewRx > 0.5))){
       loadPreset(bestNew);
       return;
     }
@@ -826,10 +831,11 @@ function audioTick(){
   if(ghosts){
     for(const g of ghosts){
       if(!g.gain) continue;
+      // v105: ±7 kHz cos-Verlauf statt linear ±3 kHz → weiches Auf-/Abblenden, kein Sprung
       const off_g=Math.abs(tuneKhz-g.freq);
       let lvl=0;
-      if(off_g<3) lvl=(1-off_g/3)*0.08*tNFactor;
-      g.gain.gain.setTargetAtTime(lvl,now,.08);
+      if(off_g<7){ const x=off_g/7; lvl=0.5*(1+Math.cos(Math.PI*x))*0.07*tNFactor; }
+      g.gain.gain.setTargetAtTime(lvl,now,.12);
     }
   }
   lastQ=q; lastSong=songLvl*aud; lastNoise=noiseBase*xm; lastIntf=fgBase*xm; lastRx=rxMain;
