@@ -679,7 +679,8 @@ function audioTick(){
       const rx2=computeRx(off2, captureFor(i), PRESETS[i].seed);
       if(rx2>bestNewRx){ bestNewRx=rx2; bestNew=i; }
     }
-    if(bestNew>=0 && (bestNewRx>0.5 || (bestNewRx>0.1 && rxMain<0.05))){
+    // v101 Fix: nur wechseln, wenn neue Station rxMain klar uebertrifft — sonst Endlos-Flimmern
+    if(bestNew>=0 && bestNewRx > rxMain + 0.15 && bestNewRx > 0.5){
       loadPreset(bestNew);
       return;
     }
