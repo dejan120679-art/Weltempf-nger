@@ -15,17 +15,21 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · TUNING-Modus (v105).
-  Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
-    -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
-    -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
+  Weltempfänger – Werkbank SW · TUNING-Modus (v106).
+  Signalkette: Quellen -> Bus -> Leiern -> HP/LP -> Peak -> Sättigung -> Drive
+    -> AGC -> RETTUNG (Tiefen-Trim -> Komp -> Make-up -> Schmerz-Cut) -> Wärme-Shelf -> Limiter
+    -> [Raum: Hall + Echo] -> Mastering (HP/Low/Mid/Air/Komp/Makeup)
+    -> Sicherung (Bell -> Soft-Clip -> Brickwall) -> Master-Trim -> Ausgang.
+  Effekt-Routing-Matrix Hall/Echo/Grain je MUSIK/STÖR/ALLES — Ausgänge zurück durch den Bus.
+  Geister laufen über stoerCollect (Extrakt-stumm).
+  Original-Pfad fädelt vor der Sicherung ein und teilt die Safety mit dem Empfänger-Pfad.
   Rettung sitzt VOR dem Raum (alles oben wird zuerst geformt). Mono. Holt nichts Verlorenes zurück.
 -->
 <div class="min-h-screen text-slate-200 font-mono text-sm p-4" id="root">
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v105</span>
+      <span class="text-amber-400 text-xs">v106</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -101,8 +105,10 @@
     </div>
 
     <div class="text-xs text-slate-500">
-      ◄ ► wechselt die Station (Lied läuft nahtlos weiter, loopt am Ende). Mit der Maus über einen Reglernamen
-      = Kurzbeschreibung. Eine unsichtbare Sicherung bügelt Spitzen/Schärfe am Ausgang.
+      Oben Band wählen (SW1–SW4) und mit dem Tune-Regler durchs Band suchen — Sender rasten ein,
+      dazwischen Rauschen und ferne Signale. Umschalter BAND/PRESETS für direktes Anwählen.
+      SCAN sucht die nächste Station. Lied läuft durchgehend und loopt am Ende.
+      Maus über einen Reglernamen = Kurzbeschreibung. Eine unsichtbare Sicherung bügelt Spitzen am Ausgang.
     </div>
   </div>
 </div>
@@ -619,21 +625,31 @@ function startScan(){
     return;
   }
   if(scanTimer){ clearInterval(scanTimer); scanTimer=null; }
-  // v104: echter Banddurchlauf — 4 kHz/Tick aufwaerts, audioTick rastet automatisch
-  // bei rx>0.5 (Hysterese). Wrap am Bandende. Stop bei idx-Wechsel (= Einrasten).
+  // v106: echter Banddurchlauf — 8 kHz/Tick aufwaerts (halbierte Worst-Case-Dauer).
+  // Target = naechste Station mit freq > tuneKhz; gibt es keine hoehere mehr → Wrap auf die niedrigste.
+  // Fang erfolgt am Target-Kern (rx>0.9) — durchlauft alle Stationen der Reihe nach, kein Pendeln.
   const b=BANDS[bandSel];
-  const scanStepKhz=4;
-  const scanStartIdx=idx;
-  const maxSteps=Math.ceil((b.max-b.min)/scanStepKhz)+5; // Safety: max. ein voller Banddurchlauf
+  const inBand=PRESETS.map((p,i)=>({p,i})).filter(x=>bandOf(x.p.freq)===bandSel);
+  if(!inBand.length) return;
+  inBand.sort((a,b)=>a.p.freq-b.p.freq);
+  const tEntry = inBand.find(x=>x.p.freq>tuneKhz) || inBand[0]; // Wrap auf niedrigste
+  const targetIdx=tEntry.i, targetFreq=tEntry.p.freq, targetSeed=tEntry.p.seed;
+  const targetCap=captureFor(targetIdx);
+  const scanStepKhz=8;
+  const maxSteps=Math.ceil((b.max-b.min)/scanStepKhz)+5;
   let step=0;
   scanTimer=setInterval(()=>{
     step++;
     let nv=tuneKhz+scanStepKhz;
     if(nv>b.max) nv=b.min+(nv-b.max);
     setTuneKhz(nv);
-    if(idx!==scanStartIdx){ // audioTick hat eingerastet
+    // Fang nur am Target-Kern
+    const offT=nv-targetFreq;
+    const rxT=computeRx(offT, targetCap, targetSeed);
+    if(rxT>0.9){
       clearInterval(scanTimer); scanTimer=null;
-      setTuneKhz(PRESETS[idx].freq);
+      loadPreset(targetIdx);
+      setTuneKhz(targetFreq);
     } else if(step>=maxSteps){
       clearInterval(scanTimer); scanTimer=null;
     }
@@ -691,10 +707,10 @@ function audioTick(){
     if(bestNewRx > rxMain){ lastDisplayIdx = bestNew; lastDisplayRx = bestNewRx; }
     else { lastDisplayIdx = idx; lastDisplayRx = rxMain; }
     // v101 Fix: Fang-Hysterese gegen Flimmern (rxMain + 0.15, > 0.5).
-    // v105 SCAN: waehrend scanTimer aktiv KEIN Festhalten an cur — Hysterese aus,
-    // dafuer Schwelle hoch (0.85) → neue Station erst am Kern fangen, dazwischen Durchquerung hoerbar.
+    // v105 SCAN: waehrend scanTimer aktiv KEIN Festhalten an cur — Hysterese aus.
+    // v106: Schwelle 0.9 (war 0.85) → Einrasten erst sehr nah am Kern, gegen Pendeln.
     const scanActive = !!scanTimer;
-    if(bestNew>=0 && (scanActive ? bestNewRx > 0.85 : (bestNewRx > rxMain + 0.15 && bestNewRx > 0.5))){
+    if(bestNew>=0 && (scanActive ? bestNewRx > 0.9 : (bestNewRx > rxMain + 0.15 && bestNewRx > 0.5))){
       loadPreset(bestNew);
       return;
     }
