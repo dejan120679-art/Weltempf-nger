@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · TUNING-Modus (v101).
+  Weltempfänger – Werkbank SW · TUNING-Modus (v102).
   Signalkette: bus -> Leiern -> Hochpass -> Tiefpass -> Peak -> Sättigung(Grit) -> Verzerrung(Drive)
     -> AGC -> RETTUNG (Tiefen-Trim -> Kompressor -> Make-up -> Schmerz-Cut) -> Limiter
     -> [Raum: Hall + Echo] -> Sicherung (Schärfe-Trim -> Soft-Clip -> Brickwall) -> Ausgang.
@@ -25,7 +25,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v101</span>
+      <span class="text-amber-400 text-xs">v102</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -284,7 +284,7 @@ async function startIcy(url){
   }catch(e){}
 }
 
-const P={noise:30,fgLevel:55,breathe:50,lp:3785,crush:0,het:60,nr:0,reverb:0,delay:0,wow:0,grain:0,vol:85,drywet:100,warm:0,extGate:33,extThr:30,extSelf:25}; // v98: warm + Extrakt-Justage; v99: Selbstmaskierungs-Regler
+const P={noise:30,fgLevel:55,breathe:50,lp:3785,crush:0,het:60,nr:0,reverb:0,delay:0,wow:0,grain:0,vol:50,drywet:100,warm:0,extGate:33,extThr:30,extSelf:25}; // v102: vol Default 50 (Mitte = Hörer-Bremse, applyPreset reset vol nicht — v97-Beschluss)
 let masterOn=false; // v97: Master default AUS
 const A={};
 let idx=0, cur=PRESETS[0], curR=null;
@@ -653,6 +653,12 @@ function updateSNR(q){ $("snr").textContent="S"+Math.max(1,Math.round(q*9))+" ·
 // v95: Audio-Modulation laeuft per setInterval (laeuft auch bei verstecktem Tab,
 // Browser drosselt auf ~1s im Hintergrund — akzeptiert). UI-Updates separat per rAF.
 let lastQ=0, lastSong=0, lastNoise=0, lastIntf=0, lastRx=0; // v100: lastRx fuer prxDisp
+// v102: Pegel-Kompression (Variante A) — Distanz-Reihenfolge bleibt, Spreizung 2.0×→1.6×.
+// Wurzel-Mix zieht zusammen; Mix-Bereich der 24 Stationen ~0.604..1.0 → 0.62..1.0.
+function gainComp(g){
+  const c=Math.sqrt(g), m=0.5*c+0.5*g;
+  return 0.62 + (m-0.604)/(1.0-0.604)*(1.0-0.62);
+}
 function audioTick(){
   if(!(A.ctx && playing && cur)) return;
   const now=A.ctx.currentTime;
@@ -725,7 +731,7 @@ function audioTick(){
   if(A.fg){ const thr=night?0.35:0.45; const gate=Math.max(0,(fade01(T,cur.seed+5)-thr)/(1-thr)); fgBase=cur.foreign? gate*(P.fgLevel/100)*0.9*duckF:0; }
   if(A.fg2){ const thr2=night?0.4:0.5; const gate2=Math.max(0,(fade01(T,cur.seed+9)-thr2)/(1-thr2)); fg2Base=cur.foreign2? gate2*(P.fgLevel/100)*0.6*duckF:0; }
   fgBase *= tnFG; fg2Base *= tnFG;
-  let songLvl=q*cur.gain*breath.v; songLvl=Math.max(0.04,songLvl);
+  let songLvl=q*gainComp(cur.gain)*breath.v; songLvl=Math.max(0.04,songLvl); // v102: Distanz bleibt, Spreizung 2.0×→1.6×
   const drive=Math.min(1, cr*0.8 + (P.noise/100)*0.3 + (P.fgLevel/100)*0.15);
   const f1=0.5+0.5*Math.sin(T*8.3+cur.seed), f2=0.5+0.5*Math.sin(T*14.1+cur.seed*1.7);
   const wob=Math.pow(f1*0.55+f2*0.45, 1+drive*1.8);
