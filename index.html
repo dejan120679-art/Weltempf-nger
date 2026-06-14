@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · TUNING-Modus (v109).
+  Weltempfänger – Werkbank SW · TUNING-Modus (v110).
   Signalkette: Quellen -> Bus -> Leiern -> HP/LP -> Peak -> Sättigung -> Drive
     -> AGC -> RETTUNG (Tiefen-Trim -> Komp -> Make-up -> Schmerz-Cut) -> Wärme-Shelf -> Limiter
     -> [Raum: Hall + Echo] -> Mastering (HP/Low/Mid/Air/Komp/Makeup)
@@ -30,7 +30,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v109</span>
+      <span class="text-amber-400 text-xs">v110</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -214,23 +214,17 @@ for(const _b in BANDS){
   bandStationCount[_b]=PRESETS.filter(p=>p.freq>=BANDS[_b].min && p.freq<=BANDS[_b].max).length;
 }
 function captureFor(stationIdx){
-  const p=PRESETS[stationIdx]; if(!p) return 40;
-  const b=bandOf(p.freq); if(!b) return 40;
-  const bw=BANDS[b].max-BANDS[b].min;
-  const n=bandStationCount[b]||1;
-  const spacing=bw/n;
-  return Math.max(40, spacing*0.75);
+  // v110 Etappe 1: realistische schmale Selektivitaet, unabhaengig vom Spacing.
+  // ±12 kHz Halbradius — Stationen klar getrennt; dazwischen echte Leere (in Etappe 2 mit Crossfade/Bleed gefuellt).
+  return 12;
 }
 function computeRx(off,cap,seed){
+  // v110 Etappe 1: glatte Gauss-Kuppel ohne Kern-Plateau (B3 aus AUDIT_TUNING.md).
+  // k=3 → bei |off|=cap ist rx=exp(-3)≈0.05. Mitte rx=1 als Spitze, nicht als Plateau.
+  // Asymmetrie via seedV: capR=cap*(1+seedV), capL=cap*(1-seedV).
   const seedV=(seed||0)*0.025;
-  const core=cap*0.12;                       // v101: schmaler Kern
-  const flankR=cap*(1+seedV), flankL=cap*(1-seedV); // v101: Glocke reicht voll bis cap (asymm.)
-  const a=Math.abs(off);
-  if(a<core) return 1;
-  const flank=off>=0?flankR:flankL;
-  if(a>=flank) return 0;
-  const t=(a-core)/Math.max(1e-6,flank-core);
-  return 0.5*(1+Math.cos(Math.PI*t));
+  const capEff=off>=0?cap*(1+seedV):cap*(1-seedV);
+  return Math.exp(-(off*off)/(capEff*capEff)*3);
 }
 // Geister-Generator: pro Band 6–10 Pseudo-Zufalls-Frequenzen + Snippet aus POOL.
 function generateGhosts(bandName){
@@ -776,7 +770,7 @@ function startScan(){
   const tEntry = inBand.find(x=>x.p.freq>tuneKhz) || inBand[0]; // Wrap auf niedrigste
   const targetIdx=tEntry.i, targetFreq=tEntry.p.freq, targetSeed=tEntry.p.seed;
   const targetCap=captureFor(targetIdx);
-  const scanStepKhz=8;
+  const scanStepKhz=2; // v110: feinere Schrittweite passend zur schmaleren cap (±12 kHz)
   const maxSteps=Math.ceil((b.max-b.min)/scanStepKhz)+5;
   let step=0;
   scanTimer=setInterval(()=>{
@@ -970,7 +964,7 @@ function audioTick(){
   let hetFqOut=500+cur.q0*1400;
   let hetLevelOut=0;
   if(rxMain>0.01 && !bleedActive){
-    hetFqOut=Math.max(40, Math.abs(off)*180);
+    hetFqOut=Math.max(40, Math.abs(off)*220); // v110: deutlicherer Sweep an der schmalen cap (12 kHz · 220 = 2.6 kHz am Rand)
     const bellFlank=1-rxMain; // 0 mittig, 1 an den Flanken
     hetLevelOut=hetBase*bellFlank*2.0;
   }
