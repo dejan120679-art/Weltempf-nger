@@ -15,11 +15,12 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · TUNING-Modus (v107).
+  Weltempfänger – Werkbank SW · TUNING-Modus (v108).
   Signalkette: Quellen -> Bus -> Leiern -> HP/LP -> Peak -> Sättigung -> Drive
     -> AGC -> RETTUNG (Tiefen-Trim -> Komp -> Make-up -> Schmerz-Cut) -> Wärme-Shelf -> Limiter
     -> [Raum: Hall + Echo] -> Mastering (HP/Low/Mid/Air/Komp/Makeup)
-    -> Sicherung (Bell -> Soft-Clip -> Schärfe-Deesser-3kHz -> Brickwall) -> Master-Trim -> Ausgang.
+    -> Sicherung (Bell -> Soft-Clip -> deEss-Peaking-3kHz (single-path, gain-modulated) -> Brickwall) -> Master-Trim -> Ausgang.
+  Schärfe-Detektor: paralleler Bandpass-3kHz + Analyser (NICHT im Audioweg) speist deEss.gain im audioTick.
   Effekt-Routing-Matrix Hall/Echo/Grain je MUSIK/STÖR/ALLES — Ausgänge zurück durch den Bus.
   Geister laufen über stoerCollect (Extrakt-stumm).
   Original-Pfad fädelt vor der Sicherung ein und teilt die Safety mit dem Empfänger-Pfad.
@@ -29,7 +30,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v107</span>
+      <span class="text-amber-400 text-xs">v108</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -438,15 +439,16 @@ function ensure(){
   origGate.connect(softSafe);
   const grainDryOut=ctx.createGain(); grainDryOut.gain.value=0.8; // v97 — nach Gehoer
   grainDryOut.connect(softSafe);
-  // v107 Punkt 8: Schärfe-Sicherung (3 kHz Band-Deesser) — parallel-Komprimierung:
-  // Hauptpfad mit fixem PeakingEQ-Cut bei 3 kHz, parallel Bandpass→Comp→Boost.
-  // Bei niedrigem Pegel kompensieren sich beide → transparent. Harte 3-kHz-Peaks → dynamischer Dip ~5 dB.
-  const sharpCut=ctx.createBiquadFilter(); sharpCut.type="peaking"; sharpCut.frequency.value=3000; sharpCut.Q.value=1.2; sharpCut.gain.value=-10;
-  const sharpBP=ctx.createBiquadFilter(); sharpBP.type="bandpass"; sharpBP.frequency.value=3000; sharpBP.Q.value=1.2;
-  const sharpComp=ctx.createDynamicsCompressor(); sharpComp.threshold.value=-28; sharpComp.knee.value=6; sharpComp.ratio.value=3; sharpComp.attack.value=0.003; sharpComp.release.value=0.08;
-  const sharpBoost=ctx.createGain(); sharpBoost.gain.value=0.684; // = 1 - 10^(-10/20), Transparenz-Kompensation
-  softSafe.connect(sharpCut); sharpCut.connect(safetyLim);
-  softSafe.connect(sharpBP); sharpBP.connect(sharpComp); sharpComp.connect(sharpBoost); sharpBoost.connect(safetyLim);
+  // v108 Schärfe-Sicherung — SINGLE-PATH-Deesser ohne Phasen-Notch.
+  // Hauptpfad: softSafe → deEss (peaking 3 kHz Q1.2, gain.value=0 = bei Ruhe TRANSPARENT)
+  //            → safetyLim → out
+  // Sidechain (NICHT im Audioweg): softSafe → deEssBP → deEssAna.
+  // audioTick liest RMS aus deEssAna und moduliert deEss.gain (0 → −6 dB bei Schärfe-Peaks).
+  const deEss=ctx.createBiquadFilter(); deEss.type="peaking"; deEss.frequency.value=3000; deEss.Q.value=1.2; deEss.gain.value=0;
+  const deEssBP=ctx.createBiquadFilter(); deEssBP.type="bandpass"; deEssBP.frequency.value=3000; deEssBP.Q.value=1.2;
+  const deEssAna=ctx.createAnalyser(); deEssAna.fftSize=256;
+  softSafe.connect(deEss); deEss.connect(safetyLim);
+  softSafe.connect(deEssBP); deEssBP.connect(deEssAna); // reine Analyse, kein Audio-Anschluss weiter
   safetyLim.connect(out);
   out.connect(ctx.destination);
   // v97: Aufnahme-Tap (Float32 ScriptProcessor) statt MediaRecorder
@@ -496,7 +498,7 @@ function ensure(){
   const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(stoerCollect); hetOsc.start();
   const sweepOsc=ctx.createOscillator(); sweepOsc.type="sawtooth"; sweepOsc.frequency.value=800;
   const sweepGain=ctx.createGain(); sweepGain.gain.value=0; sweepOsc.connect(sweepGain); sweepGain.connect(stoerCollect); sweepOsc.start();
-  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,warmShelf,lim,mix,conv,revInMusic,revInStoer,revWet,del,delFb,fbLP,delLFO,delLFOdepth,delInMusic,delInStoer,delWet,safeBell,mHP,mLow,mMid,mAir,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,origLP,out,recordTap,musicRing,stoerRing,stoerCollect,stoerMute,musicTap,stoerTap,grainOut,grainDryOut,grainCapMix,grainRecTap,noiseGain,noiseFilt,schwummMod,schwummLfo,schwummDepth,sharpCut,sharpBP,sharpComp,sharpBoost,songGain,hetOsc,hetGain,sweepOsc,sweepGain,fg:null,fgSrc:null,fg2:null,fgSrc2:null,songBuf:null,songSrc:null,bufs:{},recActive:false,recChunks:[],recGrainActive:false,recGrainChunks:[]});
+  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,warmShelf,lim,mix,conv,revInMusic,revInStoer,revWet,del,delFb,fbLP,delLFO,delLFOdepth,delInMusic,delInStoer,delWet,safeBell,mHP,mLow,mMid,mAir,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,origLP,out,recordTap,musicRing,stoerRing,stoerCollect,stoerMute,musicTap,stoerTap,grainOut,grainDryOut,grainCapMix,grainRecTap,noiseGain,noiseFilt,schwummMod,schwummLfo,schwummDepth,deEss,deEssBP,deEssAna,songGain,hetOsc,hetGain,sweepOsc,sweepGain,fg:null,fgSrc:null,fg2:null,fgSrc2:null,songBuf:null,songSrc:null,bufs:{},recActive:false,recChunks:[],recGrainActive:false,recGrainChunks:[]});
   applyControls(); startForeign();
   return A;
 }
@@ -918,6 +920,22 @@ function audioTick(){
       g.gain.gain.setTargetAtTime(lvl,now,.12);
     }
   }
+  // v108 Schärfe-Detektor: RMS aus deEssBP-Bandpass im 3-kHz-Band → deEss.gain modulieren.
+  // Unter Schwelle (0.06): Richtung 0 zurück (Release ~150 ms). Darüber: linear bis −6 dB (Attack ~30 ms).
+  if(A.deEss && A.deEssAna){
+    const N=A.deEssAna.fftSize;
+    if(!A._deEssBuf || A._deEssBuf.length!==N) A._deEssBuf=new Float32Array(N);
+    A.deEssAna.getFloatTimeDomainData(A._deEssBuf);
+    let s=0; for(let i=0;i<N;i++){ const v=A._deEssBuf[i]; s+=v*v; }
+    const rms=Math.sqrt(s/N);
+    const thr=0.06, full=0.18;
+    if(rms>thr){
+      const t=Math.min(1,(rms-thr)/(full-thr));
+      A.deEss.gain.setTargetAtTime(-6*t, now, .03);
+    } else {
+      A.deEss.gain.setTargetAtTime(0, now, .15);
+    }
+  }
   lastQ=q; lastSong=songLvl*aud; lastNoise=noiseBase*xm; lastIntf=fgBase*xm; lastRx=rxMain;
 }
 setInterval(audioTick, 33);
@@ -1084,11 +1102,27 @@ function applyPreset(){
   for(const k in curR){ P[k]=Math.max(curR[k][0],Math.min(curR[k][1],P[k])); }
   for(const k in SLD){ if(P[k]!==undefined){ if(curR[k]){ SLD[k].inp.min=curR[k][0]; SLD[k].inp.max=curR[k][1]; } SLD[k].inp.value=P[k]; SLD[k].val.textContent=P[k]; } }
   // v107: Rauschfilter-Typ + Q aus noiseProfile (Frequenz wird in audioTick mit Tageszeit kombiniert)
+  // v108: BiquadFilter.type ist nicht rampbar → kurzer Mute-Sandwich um den Typ-Wechsel (klickfrei).
   if(A.ctx && A.noiseFilt){
     const np=noiseProfile(cur.noiseType);
-    A.noiseFilt.type=np.filt;
-    A.noiseFilt.Q.setTargetAtTime(np.q, A.ctx.currentTime, .05);
-    if(A.schwummDepth) A.schwummDepth.gain.setTargetAtTime(np.schwummDepth, A.ctx.currentTime, .3);
+    const t=A.ctx.currentTime;
+    if(A.noiseGain){
+      const prevTgt=A._noisePrevTarget||A.noiseGain.gain.value;
+      A.noiseGain.gain.cancelScheduledValues(t);
+      A.noiseGain.gain.setTargetAtTime(0, t, .02); // 20 ms Lücke runter
+      setTimeout(()=>{
+        try{
+          A.noiseFilt.type=np.filt;
+          A.noiseFilt.Q.setTargetAtTime(np.q, A.ctx.currentTime, .05);
+          if(A.schwummDepth) A.schwummDepth.gain.setTargetAtTime(np.schwummDepth, A.ctx.currentTime, .3);
+          // audioTick uebernimmt ab naechstem Tick wieder die Pegel-Steuerung → kein Re-Hochrampen noetig
+        }catch(e){}
+      }, 25); // Typ-Wechsel in der Lücke
+    } else {
+      A.noiseFilt.type=np.filt;
+      A.noiseFilt.Q.setTargetAtTime(np.q, t, .05);
+      if(A.schwummDepth) A.schwummDepth.gain.setTargetAtTime(np.schwummDepth, t, .3);
+    }
   }
   applyControls();
 }
