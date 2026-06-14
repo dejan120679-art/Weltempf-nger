@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-950">
 <!--
-  Weltempfänger – Werkbank SW · TUNING-Modus (v108).
+  Weltempfänger – Werkbank SW · TUNING-Modus (v109).
   Signalkette: Quellen -> Bus -> Leiern -> HP/LP -> Peak -> Sättigung -> Drive
     -> AGC -> RETTUNG (Tiefen-Trim -> Komp -> Make-up -> Schmerz-Cut) -> Wärme-Shelf -> Limiter
     -> [Raum: Hall + Echo] -> Mastering (HP/Low/Mid/Air/Komp/Makeup)
@@ -30,7 +30,7 @@
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-xs tracking-widest text-slate-400 font-semibold">WELTEMPFÄNGER · WERKBANK SW</h2>
-      <span class="text-amber-400 text-xs">v108</span>
+      <span class="text-amber-400 text-xs">v109</span>
     </div>
 
     <div id="topbar" class="flex gap-2 mb-3">
@@ -252,6 +252,62 @@ function generateGhosts(bandName){
   }
   return ghosts;
 }
+// v109 Etappe A: prozedurale Nacht-Datensignale (RTTY/Morse/Bake) — POOL-Architektur,
+// nur Daten pro Band, 3 Voices folgen den 3 naechsten Signalen beim Tunen.
+function generateNightSignals(bandName){
+  const rng=seededRng("night_"+bandName);
+  const b=BANDS[bandName];
+  const n=10+Math.floor(rng()*5); // 10..14
+  const stationFreqs=PRESETS.filter(p=>p.freq>=b.min && p.freq<=b.max).map(p=>p.freq);
+  const sigs=[];
+  for(let i=0;i<n;i++){
+    let f, tries=0;
+    do { f=b.min+Math.floor(rng()*(b.max-b.min)); tries++; }
+    while(tries<60 && stationFreqs.concat(sigs.map(s=>s.freq)).some(sf=>Math.abs(sf-f)<10));
+    const types=["rtty","morse","bake"];
+    const type=types[Math.floor(rng()*types.length)];
+    const seed=rng()*1000;
+    const cap=4+rng()*2; // ±4-6 kHz cos-Glocke
+    let params={};
+    if(type==="rtty"){
+      params.markFreq=600+rng()*1200;
+      params.spaceOffset=170;
+      params.bitRate=8+rng()*12;       // 8-20 bps
+      params.driftRate=0.05+rng()*0.10;
+      params.driftDepth=5;
+    } else if(type==="morse"){
+      params.toneFreq=500+rng()*500;
+      params.dotMs=60+rng()*60;
+      params.patternSeed=rng()*1000;
+    } else { // bake
+      params.toneFreq=600+rng()*800;
+      params.onMs=800; params.offMs=400;
+    }
+    sigs.push({freq:f, type, seed, cap, params});
+  }
+  return sigs;
+}
+// v109 Wuseln (KEINE Insekten — viele winzige Datenfetzen, ergeben in Summe ein zirpendes Band-Gewusel)
+function generateWuseln(bandName){
+  const rng=seededRng("wuseln_"+bandName);
+  const b=BANDS[bandName];
+  const n=6+Math.floor(rng()*5); // 6..10
+  const list=[];
+  for(let i=0;i<n;i++){
+    const f=b.min+Math.floor(rng()*(b.max-b.min));
+    const seed=rng()*1000;
+    const toneFreq=1500+rng()*2000;
+    const onMs=30+rng()*100;
+    const offMs=300+rng()*1500;
+    list.push({freq:f, seed, toneFreq, onMs, offMs});
+  }
+  return list;
+}
+// v109 Tag/Nacht-Faktor fuer Nacht-Signale: tags 0.25 (kaum hoerbar), nachts 1.0/1.2 (tiefe staerker)
+function nachtFaktor(b,isNight){
+  if(!isNight) return 0.25;
+  return (b==="SW1"||b==="SW2") ? 1.2 : 1.0;
+}
 // Nächstgelegene Station im Band — für Bleed + SCAN-Ziel
 function nearestStationInBand(khz,band){
   let best=-1, bestDist=Infinity;
@@ -344,6 +400,8 @@ let recGrainKind=null, recGrainT0=0, recGrainTimer=null, recGrainPending=[], rec
 let lastK=null; // v97: tanhCurve-Cache fuer Shaper
 let bandSel="SW2", tuneKhz=6075; // v100: aktives Band + Tuning-Frequenz (Default = STN-01)
 const bandGhosts={}; // v100: pro Band 6-10 Geister, lazy initialisiert
+const bandNightSignals={}; // v109: pro Band 10-14 Nacht-Datensignale (Daten, kein Audio-Knoten)
+const bandWuseln={};       // v109: pro Band 6-10 Wuseln-Daten (Daten, kein Audio-Knoten)
 let scanTimer=null;  // v100: SCAN-Animation
 let viewMode="BAND"; // v101: "BAND" (Tuning-Landschaft, default) | "PRESETS" (Stationsliste)
 const breath={t:0,v:1};
@@ -498,7 +556,31 @@ function ensure(){
   const hetGain=ctx.createGain(); hetGain.gain.value=0; hetOsc.connect(hetGain); hetGain.connect(stoerCollect); hetOsc.start();
   const sweepOsc=ctx.createOscillator(); sweepOsc.type="sawtooth"; sweepOsc.frequency.value=800;
   const sweepGain=ctx.createGain(); sweepGain.gain.value=0; sweepOsc.connect(sweepGain); sweepGain.connect(stoerCollect); sweepOsc.start();
-  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,warmShelf,lim,mix,conv,revInMusic,revInStoer,revWet,del,delFb,fbLP,delLFO,delLFOdepth,delInMusic,delInStoer,delWet,safeBell,mHP,mLow,mMid,mAir,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,origLP,out,recordTap,musicRing,stoerRing,stoerCollect,stoerMute,musicTap,stoerTap,grainOut,grainDryOut,grainCapMix,grainRecTap,noiseGain,noiseFilt,schwummMod,schwummLfo,schwummDepth,deEss,deEssBP,deEssAna,songGain,hetOsc,hetGain,sweepOsc,sweepGain,fg:null,fgSrc:null,fg2:null,fgSrc2:null,songBuf:null,songSrc:null,bufs:{},recActive:false,recChunks:[],recGrainActive:false,recGrainChunks:[]});
+  // v109 Etappe A: Pool von 3 Nacht-Voices (je 2 OSC fuer RTTY-Mark/Space, beide gegated; bei Morse/Bake nur g1 aktiv).
+  // Persistent, werden pro Tick den 3 naechsten Signalen des aktiven Bandes zugewiesen — konstante Knotenzahl.
+  const nightVoices=[];
+  for(let i=0;i<3;i++){
+    const o1=ctx.createOscillator(); o1.type="sine"; o1.frequency.value=800;
+    const o2=ctx.createOscillator(); o2.type="sine"; o2.frequency.value=970;
+    const g1=ctx.createGain(); g1.gain.value=0;
+    const g2=ctx.createGain(); g2.gain.value=0;
+    const master=ctx.createGain(); master.gain.value=0;
+    o1.connect(g1); g1.connect(master);
+    o2.connect(g2); g2.connect(master);
+    master.connect(stoerCollect);
+    o1.start(); o2.start();
+    nightVoices.push({o1,o2,g1,g2,master,sigFreq:-1});
+  }
+  // v109 Wuseln-Pool: 10 winzige OSC+Gain, 1:1 zu Wuseln-Daten des aktiven Bands (max 10 pro Band).
+  const wuselnPool=[];
+  for(let i=0;i<10;i++){
+    const o=ctx.createOscillator(); o.type="sine"; o.frequency.value=2000;
+    const g=ctx.createGain(); g.gain.value=0;
+    o.connect(g); g.connect(stoerCollect);
+    o.start();
+    wuselnPool.push({o,g,wfFreq:-1});
+  }
+  Object.assign(A,{ctx,bus,wow,wowDepth,hp,lp,pkf,shaper,crushShaper,crushWet,crushDry,agc,rHP,rComp,rMakeup,rTame,warmShelf,lim,mix,conv,revInMusic,revInStoer,revWet,del,delFb,fbLP,delLFO,delLFOdepth,delInMusic,delInStoer,delWet,safeBell,mHP,mLow,mMid,mAir,mComp,mMakeup,mOn,mOff,chainGate,origGate,origRaw,origLP,out,recordTap,musicRing,stoerRing,stoerCollect,stoerMute,musicTap,stoerTap,grainOut,grainDryOut,grainCapMix,grainRecTap,noiseGain,noiseFilt,schwummMod,schwummLfo,schwummDepth,deEss,deEssBP,deEssAna,nightVoices,wuselnPool,songGain,hetOsc,hetGain,sweepOsc,sweepGain,fg:null,fgSrc:null,fg2:null,fgSrc2:null,songBuf:null,songSrc:null,bufs:{},recActive:false,recChunks:[],recGrainActive:false,recGrainChunks:[]});
   applyControls(); startForeign();
   return A;
 }
@@ -590,6 +672,9 @@ function ensureBandGhosts(band){
   if(!A.ctx) return;
   for(const g of bandGhosts[band]){ if(!g.src) activateGhost(g); }
 }
+// v109: Daten lazy. Audio-Knoten gibt es NICHT pro Signal — Pools (nightVoices/wuselnPool) in createAudio.
+function ensureBandNightSignals(band){ if(!bandNightSignals[band]) bandNightSignals[band]=generateNightSignals(band); }
+function ensureBandWuseln(band){ if(!bandWuseln[band]) bandWuseln[band]=generateWuseln(band); }
 // v100 Tune-UI-Update: Slider, Anzeige, Stations-Title
 function updateTuneUI(){
   const sl=$("tuneSlider"), d=$("tuneDisp");
@@ -918,6 +1003,79 @@ function audioTick(){
       // v107 Punkt 6: Geister-Pegel × bandLifeFactor (Band lebt nachts auf tiefen, schweigt nachts auf hohen)
       if(off_g<7){ const x=off_g/7; lvl=0.5*(1+Math.cos(Math.PI*x))*0.07*tNFactor*_bl; }
       g.gain.gain.setTargetAtTime(lvl,now,.12);
+    }
+  }
+  // v109 Etappe A: Nacht-Datensignale (RTTY/Morse/Baken) + Band-Wuseln.
+  // Pool-Zuweisung: jedes Tick werden die 3 NAECHSTEN Signale (kleinster |tuneKhz-sig.freq|)
+  // den 3 Voices zugewiesen — egal wie viele Signale im Band liegen, immer max. 3 aktive Voices.
+  // Pegel = bell(off) * nachtFaktor(band,night) * (1-rxMain) → im Sweet-Spot (rxMain=1) absolut still.
+  ensureBandNightSignals(bandSel); ensureBandWuseln(bandSel);
+  const _nf=nachtFaktor(bandSel,night), _dampe=1-rxMain;
+  const _nsigs=bandNightSignals[bandSel];
+  if(_nsigs && A.nightVoices){
+    const _sorted=_nsigs.map(s=>({s,d:Math.abs(tuneKhz-s.freq)})).sort((a,b)=>a.d-b.d);
+    for(let v=0;v<3;v++){
+      const voice=A.nightVoices[v];
+      if(v>=_sorted.length || _dampe<=0.01 || _nf<=0.001){
+        voice.master.gain.setTargetAtTime(0,now,.08);
+        voice.g1.gain.setTargetAtTime(0,now,.02);
+        voice.g2.gain.setTargetAtTime(0,now,.02);
+        continue;
+      }
+      const sig=_sorted[v].s;
+      const sOff=Math.abs(tuneKhz-sig.freq);
+      let sBell=0;
+      if(sOff<sig.cap){ const x=sOff/sig.cap; sBell=0.5*(1+Math.cos(Math.PI*x)); }
+      const lvl=sBell*_nf*_dampe*0.08;
+      if(voice.sigFreq!==sig.freq) voice.sigFreq=sig.freq; // Re-Assignment-Marker
+      if(sig.type==="rtty"){
+        const phase=((T+sig.seed)*sig.params.bitRate)%1;
+        const mark=phase<0.5?1:0;
+        const drift=sig.params.driftDepth*Math.sin(T*sig.params.driftRate+sig.seed);
+        voice.o1.frequency.setTargetAtTime(sig.params.markFreq+drift,now,.05);
+        voice.o2.frequency.setTargetAtTime(sig.params.markFreq+sig.params.spaceOffset+drift,now,.05);
+        voice.g1.gain.setTargetAtTime(mark,now,.002);
+        voice.g2.gain.setTargetAtTime(1-mark,now,.002);
+      } else if(sig.type==="morse"){
+        const dotDur=sig.params.dotMs/1000;
+        const elapsed=(T+sig.seed)%(16*dotDur);
+        const u=Math.floor(elapsed/dotDur);
+        const h=((u*2654435761)^Math.floor(sig.params.patternSeed*1000))>>>0;
+        const on=(h&3)===0?0:1;
+        voice.o1.frequency.setTargetAtTime(sig.params.toneFreq,now,.05);
+        voice.g1.gain.setTargetAtTime(on,now,.002);
+        voice.g2.gain.setTargetAtTime(0,now,.002);
+      } else { // bake
+        const cyc=(sig.params.onMs+sig.params.offMs)/1000;
+        const elapsed=(T+sig.seed)%cyc;
+        const on=elapsed<(sig.params.onMs/1000)?1:0;
+        voice.o1.frequency.setTargetAtTime(sig.params.toneFreq,now,.05);
+        voice.g1.gain.setTargetAtTime(on,now,.002);
+        voice.g2.gain.setTargetAtTime(0,now,.002);
+      }
+      voice.master.gain.setTargetAtTime(lvl,now,.08);
+    }
+  }
+  // Wuseln: NUR nachts × (1-rxMain), 1:1 mit Pool-Slots, im Sweet-Spot still
+  const _wlist=bandWuseln[bandSel];
+  if(_wlist && A.wuselnPool){
+    const _wactive=night;
+    for(let i=0;i<A.wuselnPool.length;i++){
+      const slot=A.wuselnPool[i];
+      if(!_wactive || i>=_wlist.length || _dampe<=0.01){
+        slot.g.gain.setTargetAtTime(0,now,.08);
+        continue;
+      }
+      const w=_wlist[i];
+      const wOff=Math.abs(tuneKhz-w.freq);
+      const wCap=8;
+      let wBell=0;
+      if(wOff<wCap){ const x=wOff/wCap; wBell=0.5*(1+Math.cos(Math.PI*x)); }
+      if(slot.wfFreq!==w.freq){ slot.wfFreq=w.freq; slot.o.frequency.setTargetAtTime(w.toneFreq,now,.05); }
+      const cyc=(w.onMs+w.offMs)/1000;
+      const elapsed=(T+w.seed)%cyc;
+      const on=elapsed<(w.onMs/1000)?1:0;
+      slot.g.gain.setTargetAtTime(on*wBell*_dampe*0.025,now,.05);
     }
   }
   // v108 Schärfe-Detektor: RMS aus deEssBP-Bandpass im 3-kHz-Band → deEss.gain modulieren.
